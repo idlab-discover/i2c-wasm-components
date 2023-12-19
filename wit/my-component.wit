@@ -1,0 +1,6 @@
+package my:project;
+
+world i2c-app {
+    import message: func() -> string;
+    export write: func();
+}
