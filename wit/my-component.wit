@@ -1,6 +1,15 @@
 package my:project;
 
+interface types {
+    type device = u32;
+    type error = u32;
+    
+    i2c-init: func(address: u8) -> result<u32, u32>;
+    write: func(message: string) -> result<u32, u32>;
+}
+
 world i2c-app {
-    import message: func() -> string;
-    export write: func();
+    import types;
+
+    export start: func() -> result;
 }
