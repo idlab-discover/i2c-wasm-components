@@ -11,3 +11,6 @@ async-trait = "0.1.74"
 futures = { version = "0.3.29", features = ["executor"] }
 wasmtime = { version = "15.0.1", features = ["component-model"] }
 wasmtime-wasi = "15.0.1"
+embedded-hal = { workspace = true }
+hd44780-driver = { workspace = true }
+rppal = { workspace = true }

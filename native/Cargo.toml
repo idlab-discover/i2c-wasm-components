@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-embedded-hal = "0.2.7"
-hd44780-driver = "0.4.0"
-rppal = { version = "0.16.0", features = ["hal"] }
-
+embedded-hal = { workspace = true }
+hd44780-driver = { workspace = true }
+rppal = { workspace = true }

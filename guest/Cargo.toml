@@ -8,7 +8,4 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-embedded-hal = "0.2.7"
-hd44780-driver = "0.4.0"
-rppal = { version = "0.16.0", features = ["hal"] }
 wit-bindgen = { git = "https://github.com/bytecodealliance/wit-bindgen", version = "0.16.0" }
