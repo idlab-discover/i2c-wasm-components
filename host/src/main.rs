@@ -15,7 +15,6 @@ use rppal::i2c::I2c;
 // to be `true`.
 wasmtime::component::bindgen!({
     path: "../wit",
-    world: "i2c-app",
     async: true,    // wasmtime-wasi currently only has an async implementation
 });
 

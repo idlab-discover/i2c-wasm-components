@@ -1,4 +1,4 @@
-use  crate::my::project::types::{i2c_init, write};
+use crate::my::project::types::{i2c_init, write};
 
 wit_bindgen::generate!({
     path: "../wit",

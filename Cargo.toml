@@ -2,7 +2,6 @@
 members = [
     "native",
     "host",
-    "guest"
 ]
 resolver = "2"
 
