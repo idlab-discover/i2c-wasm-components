@@ -7,6 +7,7 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-embedded-hal = "0.2.7"
-hd44780-driver = "0.4.0"
-rppal = { version = "0.16.0", features = ["hal"] }
+embedded-hal = "1.0.0"
+# PR with embedded-hal v1 support
+hd44780-driver = { git = "https://github.com/ichdenkenicht/hd44780-driver.git" }
+rppal = { version = "0.17.0", features = ["hal"] }
