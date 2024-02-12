@@ -2,7 +2,7 @@ use crate::my::project::types;
 
 use wasmtime::component::{Component, Linker};
 use wasmtime::{Config, Engine, Store};
-use wasmtime_wasi::preview2::{Table, WasiCtx, WasiView, WasiCtxBuilder};
+use wasmtime_wasi::preview2::{WasiCtxBuilder, WasiCtx, WasiView, ResourceTable};
 use futures::executor::block_on;
 use async_trait::async_trait;
 
@@ -22,7 +22,7 @@ wasmtime::component::bindgen!({
 struct MyState {
     lcd: Option<HD44780<bus::I2CBus<I2c>>>,
     delay: Option<Delay>,
-    table: Table,
+    table: ResourceTable,
     wasi: WasiCtx
 }
 
@@ -61,10 +61,10 @@ impl types::Host for MyState {
 
 // Needed for wasmtime_wasi::preview2
 impl WasiView for MyState {
-    fn table(&self) -> &Table {
+    fn table(&self) -> &ResourceTable {
         &self.table
     }
-    fn table_mut(&mut self) -> &mut Table {
+    fn table_mut(&mut self) -> &mut ResourceTable {
         &mut self.table
     }
     fn ctx(&self) -> &WasiCtx {
@@ -105,7 +105,7 @@ fn main() -> wasmtime::Result<()> {
     // takes the store, component, and linker. This returns the `bindings`
     // structure which is an instance of `HelloWorld` and supports typed access
     // to the exports of the component.
-    let table = Table::new();
+    let table = ResourceTable::new();
 
     let wasi = WasiCtxBuilder::new()
             // .inherit_stderr()
