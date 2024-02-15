@@ -14,3 +14,4 @@ wasmtime-wasi = "17.0.1"
 embedded-hal = { workspace = true }
 hd44780-driver = { workspace = true }
 rppal = { workspace = true }
+wit-component = "0.21.0"
