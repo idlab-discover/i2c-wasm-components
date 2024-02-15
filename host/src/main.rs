@@ -76,7 +76,9 @@ struct MyState {
 /// In this example we convert the code here to simplify the testing process and build system.
 fn convert_to_component(path: impl AsRef<Path>) -> Result<Vec<u8>> {
     let bytes = &fs::read(&path).context("failed to read input file")?;
+    let adapter_bytes = &fs::read("../guest/wasi_snapshot_preview1.reactor.wasm").context("failed to read adapter file")?;
     wit_component::ComponentEncoder::default()
+        .adapter("wasi_snapshot_preview1", adapter_bytes)?
         .module(&bytes)?
         .encode()
 }
