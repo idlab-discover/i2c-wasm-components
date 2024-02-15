@@ -1,7 +1,7 @@
 [workspace]
 
 [package]
-name = "guest"
+name = "i2c-app"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,4 +10,9 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-wit-bindgen = "0.17.0"
+wit-bindgen = { version = "0.18.0", default-features = false, features = ["realloc"]}
+
+[package.metadata.component]
+package = "component:i2c-app"
+
+[package.metadata.component.dependencies]

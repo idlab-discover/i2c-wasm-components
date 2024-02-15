@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "native",
-    "host",
+    "host", "i2c-app",
 ]
 resolver = "2"
 
@@ -10,3 +10,4 @@ embedded-hal = "1.0.0"
 # PR with embedded-hal v1 support
 hd44780-driver = { git = "https://github.com/ichdenkenicht/hd44780-driver.git" }
 rppal = { version = "0.17.0", features = ["hal"] }
+
