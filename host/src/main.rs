@@ -1,10 +1,7 @@
-use anyhow::Context;
-use std::{fs, path::Path};
 use wasmtime::{
     component::{bindgen, Component, Linker},
     Config, Engine, Result, Store,
 };
-use wit_component;
 
 use hd44780_driver::{bus, Cursor, CursorBlink, Display, DisplayMode, HD44780};
 use rppal::hal::Delay;
@@ -71,24 +68,26 @@ struct MyState {
 /// is a good way of doing that: https://github.com/bytecodealliance/cargo-component
 ///
 /// In this example we convert the code here to simplify the testing process and build system.
-fn convert_to_component(path: impl AsRef<Path>) -> Result<Vec<u8>> {
-    let bytes = &fs::read(&path).context("failed to read input file")?;
-    // let adapter_bytes = &fs::read("../guest/wasi_snapshot_preview1.reactor.wasm").context("failed to read adapter file")?;
-    wit_component::ComponentEncoder::default()
-        // .adapter("wasi_snapshot_preview1", adapter_bytes)?
-        .module(&bytes)?
-        .encode()
-}
+// fn convert_to_component(path: impl AsRef<Path>) -> Result<Vec<u8>> {
+//     let bytes = &fs::read(&path).context("failed to read input file")?;
+//     let adapter_bytes = &fs::read("wasi_snapshot_preview1.reactor.wasm").context("failed to read adapter file")?;
+//     wit_component::ComponentEncoder::default()
+//         .adapter("wasi_snapshot_preview1", adapter_bytes)?
+//         .module(&bytes)?
+//         .encode()
+// }
 
 fn main() -> Result<()> {
     // Configure an `Engine` and compile the `Component` that is being run for
     // the application.
     // Async support is needed for wasmtime linker
     let engine = Engine::new(Config::new().wasm_component_model(true))?;
-    let component = convert_to_component("../guest/target/wasm32-wasi/debug/guest.wasm")?;
+    let path = "../guest/target/wasm32-wasi/debug/guest.wasm";
+    // let component = convert_to_component("../guest/target/wasm32-wasi/debug/guest.wasm")?;
 
     // Create our component and call our generated host function.
-    let component = Component::from_binary(&engine, &component)?;
+    // let component = Component::from_binary(&engine, &component)?;
+    let component = Component::from_file(&engine, path)?;
     let mut store = Store::new(
         &engine,
         MyState {
