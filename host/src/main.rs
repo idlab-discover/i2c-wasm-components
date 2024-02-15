@@ -86,7 +86,7 @@ fn main() -> Result<()> {
     // the application.
     // Async support is needed for wasmtime linker
     let engine = Engine::new(Config::new().wasm_component_model(true))?;
-    let component = convert_to_component("../guest/guest.component.wasm")?;
+    let component = convert_to_component("../guest/target/wasm32-wasi/debug/guest.wasm")?;
 
     // Create our component and call our generated host function.
     let component = Component::from_binary(&engine, &component)?;
