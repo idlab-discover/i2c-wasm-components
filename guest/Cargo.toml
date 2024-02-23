@@ -1,8 +1,6 @@
-[workspace]
-
 [package]
-name = "guest"
-version = "0.1.0"
+name = "thesis"
+version = "0.0.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -10,13 +8,15 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-wit-bindgen = { version = "0.18.0", default-features = false, features = ["realloc"]}
+wit-bindgen = { version = "0.18.0", default-features = false, features = [
+    "realloc",
+] }
+hd44780-driver = { git = "https://github.com/ichdenkenicht/hd44780-driver.git" }
+embedded-hal = "1.0.0"
 
 [package.metadata.component]
-package = "component:guest"
 
 [package.metadata.component.target]
-path = "../wit/my-component.wit"
-world = "i2c-app"
+path = "../wit"
 
-[package.metadata.component.dependencies]
+[package.metadata.component.target.dependencies]

@@ -1,70 +1,108 @@
+use crate::sketch::embedded::{delay, i2c};
+use linux_embedded_hal::I2cdev;
 use wasmtime::{
     component::{bindgen, Component, Linker},
     Config, Engine, Result, Store,
 };
-use wasmtime_wasi::preview2::{ResourceTable, WasiCtx, WasiView, WasiCtxBuilder};
-use futures::executor::block_on;
-use async_trait::async_trait;
-
-use crate::my::project::types;
-
-use hd44780_driver::{bus, Cursor, CursorBlink, Display, DisplayMode, HD44780};
-use rppal::hal::Delay;
-use rppal::i2c::I2c;
+use wasmtime_wasi::preview2::{ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
 
 bindgen!({
-    path: "../wit/my-component.wit",
-    world: "i2c-app",
-    async: true,    // wasmtime-wasi currently only has an async implementation
+    path: "../wit",
+    world: "screen",
+    with: {
+        "sketch:embedded/delay/delay": Delay,
+        "sketch:embedded/i2c/i2c": I2c,
+    }
 });
 
-struct MyState {
-    lcd: Option<HD44780<bus::I2CBus<I2c>>>,
-    delay: Option<Delay>,
+pub struct Delay;
+pub struct I2c(I2cdev);
+
+struct HostComponent {
     table: ResourceTable,
-    wasi: WasiCtx
 }
 
-#[async_trait]
-impl types::Host for MyState {
-    async fn i2c_init(&mut self, address: u8) -> std::result::Result<std::result::Result<u32, u32>, wasmtime::Error> {
-        let i2c = I2c::new().unwrap();
-        let mut delay = Delay::new();
-        let mut lcd = HD44780::new_i2c(i2c, address, &mut delay).unwrap();
+impl i2c::Host for HostComponent {}
+impl delay::Host for HostComponent {}
 
-        // Unshift display and set cursor to 0
-        lcd.reset(&mut delay).unwrap();
-        // Clear screen
-        lcd.clear(&mut delay).unwrap();
-        lcd.set_display_mode(
-            DisplayMode {
-                display: Display::On,
-                cursor_visibility: Cursor::Visible,
-                cursor_blink: CursorBlink::On,
-            },
-            &mut delay,
-        ).unwrap();
-
-        self.lcd = Some(lcd);
-        self.delay = Some(delay);
-
-        Ok(Ok(1))
+impl i2c::HostI2c for HostComponent {
+    fn transaction(
+        &mut self,
+        self_: wasmtime::component::Resource<I2c>,
+        address: i2c::Address,
+        operations: Vec<i2c::Operation>,
+    ) -> wasmtime::Result<Result<Vec<Vec<u8>>, i2c::ErrorCode>> {
+        todo!()
     }
-    
-    async fn write(&mut self, message: String) -> std::result::Result<std::result::Result<u32, u32>, wasmtime::Error> {
-        self.lcd.as_mut().expect("lcd is not initiated").write_str(&message, self.delay.as_mut().expect("lcd is not initiated")).unwrap();
 
-        Ok(Ok(1))
+    fn read(
+        &mut self,
+        self_: wasmtime::component::Resource<I2c>,
+        address: i2c::Address,
+        len: u64,
+    ) -> wasmtime::Result<Result<Vec<u8>, i2c::ErrorCode>> {
+        todo!()
     }
+
+    fn write(
+        &mut self,
+        self_: wasmtime::component::Resource<I2c>,
+        address: i2c::Address,
+        data: Vec<u8>,
+    ) -> wasmtime::Result<Result<(), i2c::ErrorCode>> {
+        let self_ = self.table.get_mut(&self_)?;
+
+        match embedded_hal::i2c::I2c::write(&mut self_.0, address, &data) {
+            Ok(()) => Ok(Ok(())),
+            Err(_) => Ok(Err(i2c::ErrorCode::Other)),
+        }
+    }
+
+    fn write_read(
+        &mut self,
+        self_: wasmtime::component::Resource<I2c>,
+        address: i2c::Address,
+        write: Vec<u8>,
+        read_len: u64,
+    ) -> wasmtime::Result<Result<(), i2c::ErrorCode>> {
+        todo!()
+    }
+
+    fn drop(&mut self, self_: wasmtime::component::Resource<I2c>) -> wasmtime::Result<()> {
+        self.table.delete(self_)?;
+        Ok(())
+    }
+}
+
+impl delay::HostDelay for HostComponent {
+    fn delay_ns(
+        &mut self,
+        self_: wasmtime::component::Resource<delay::Delay>,
+        ns: u32,
+    ) -> wasmtime::Result<()> {
+        let _self_ = self.table.get_mut(&self_)?;
+        std::thread::sleep(std::time::Duration::from_nanos(ns.into()));
+        Ok(())
+    }
+
+    fn drop(&mut self, self_: wasmtime::component::Resource<delay::Delay>) -> wasmtime::Result<()> {
+        self.table.delete(self_)?;
+        Ok(())
+    }
+}
+
+struct MyState {
+    host: HostComponent,
+    wasi: WasiCtx,
 }
 
 // Needed for wasmtime_wasi::preview2
 impl WasiView for MyState {
     fn table(&self) -> &ResourceTable {
-        &self.table
+        &self.host.table
     }
     fn table_mut(&mut self) -> &mut ResourceTable {
-        &mut self.table
+        &mut self.host.table
     }
     fn ctx(&self) -> &WasiCtx {
         &self.wasi
@@ -76,42 +114,41 @@ impl WasiView for MyState {
 
 fn main() -> Result<()> {
     let mut config = Config::new();
-    config.wasm_component_model(true)
-          .async_support(true);
+    config.wasm_component_model(true);
     let engine = Engine::new(&config)?;
-    let component = Component::from_file(&engine, "../guest/target/wasm32-wasi/debug/guest.wasm")?;
+    let component = Component::from_file(&engine, "../guest/target/wasm32-wasi/debug/thesis.wasm")?;
 
     let mut linker = Linker::new(&engine);
 
     // Bind wasi commmand world
-    wasmtime_wasi::preview2::command::add_to_linker(&mut linker)?;
+    wasmtime_wasi::preview2::command::sync::add_to_linker(&mut linker)?;
     // Binding host
-    I2cApp::add_to_linker(&mut linker, |state: &mut MyState| state)?;
-
-    let table = ResourceTable::new();
+    Screen::add_to_linker(&mut linker, |state: &mut MyState| &mut state.host)?;
 
     let wasi = WasiCtxBuilder::new()
-            .inherit_stdout()
-            .inherit_stdio()
-            .build();
+        .inherit_stdout()
+        .inherit_stdio()
+        .build();
 
-    let mut store = Store::new(
-        &engine,
-        MyState {
-            lcd: None,
-            delay: None,
-            table,
-            wasi
+    let mut state = MyState {
+        host: HostComponent {
+            table: ResourceTable::new(),
         },
-    );
+        wasi,
+    };
 
-    block_on(async {
-        let (bindings, _) = I2cApp::instantiate_async(&mut store, &component, &linker).await?;
+    let i2cdev = I2cdev::new(format!("/dev/i2c-{}", 1))?;
 
-        let _ = bindings.call_start(&mut store).await?;
+    let screen = state.host.table.push(I2c(i2cdev))?;
+    let delay = state.host.table.push(Delay)?;
 
-        Ok::<(), anyhow::Error>(())
-    })?;
+    let mut store = Store::new(&engine, state);
 
-    Ok(())
+    let (bindings, _) = Screen::instantiate(&mut store, &component, &linker)?;
+
+    let _ = bindings
+        .sketch_embedded_run()
+        .call_run(&mut store, screen, delay)?;
+
+    Ok::<(), anyhow::Error>(())
 }

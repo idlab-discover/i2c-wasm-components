@@ -9,9 +9,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed570934406eb16438a4e976b1b4500774099c13b8cb96eec99f620f05090ddf"
 
 [[package]]
-name = "guest"
-version = "0.1.0"
+name = "embedded-hal"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "361a90feb7004eca4019fb28352a9465666b24f840f5c3cddf0ff13920590b89"
+
+[[package]]
+name = "hd44780-driver"
+version = "0.4.0"
+source = "git+https://github.com/ichdenkenicht/hd44780-driver.git#55cc9d1136c47f5b8ac1a798c4687169f9bada7c"
 dependencies = [
+ "embedded-hal",
+]
+
+[[package]]
+name = "thesis"
+version = "0.0.0"
+dependencies = [
+ "embedded-hal",
+ "hd44780-driver",
  "wit-bindgen",
 ]
 
