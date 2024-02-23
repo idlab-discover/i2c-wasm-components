@@ -186,7 +186,7 @@ pub mod sketch {
         }
       }
       
-      impl std::error::Error for ErrorCode {}
+      #[cfg(feature = "std")]impl std::error::Error for ErrorCode {}
       /// An operation used by the `transaction` method.
       #[derive(Clone)]
       pub enum Operation{
