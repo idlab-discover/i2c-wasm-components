@@ -11,6 +11,8 @@ crate-type = ["cdylib"]
 wit-bindgen = { version = "0.18.0", default-features = false, features = [
     "realloc",
 ] }
+hd44780-driver = { git = "https://github.com/ichdenkenicht/hd44780-driver.git" }
+embedded-hal = "1.0.0"
 
 [package.metadata.component]
 

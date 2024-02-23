@@ -116,7 +116,7 @@ fn main() -> Result<()> {
     let mut config = Config::new();
     config.wasm_component_model(true);
     let engine = Engine::new(&config)?;
-    let component = Component::from_file(&engine, "../guest/target/wasm32-wasi/debug/guest.wasm")?;
+    let component = Component::from_file(&engine, "../guest/target/wasm32-wasi/debug/thesis.wasm")?;
 
     let mut linker = Linker::new(&engine);
 
