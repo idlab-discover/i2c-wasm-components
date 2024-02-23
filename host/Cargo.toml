@@ -7,12 +7,8 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.75"
-async-trait = "0.1.74"
-futures = { version = "0.3.29", features = ["executor"] }
 wasmtime = "17.0.1"
 wasmtime-wasi = "17.0.1"
 embedded-hal = "1.0.0"
-# PR with embedded-hal v1 support
-hd44780-driver = { git = "https://github.com/ichdenkenicht/hd44780-driver.git" }
-rppal = { version = "0.17.0", features = ["hal"] }
-wit-component = "0.21.0"
+linux-embedded-hal = "0.4.0"
+i2cdev = "0.6.0"
