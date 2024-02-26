@@ -1,8 +1,12 @@
+#![no_std]
+#![no_main]
+
 mod bindings;
 
 use crate::bindings::exports::sketch::embedded::run::Guest;
 use crate::bindings::sketch::embedded::delay::Delay;
 use crate::bindings::sketch::embedded::i2c::I2c;
+use lol_alloc::{AssumeSingleThreaded, FreeListAllocator};
 
 struct Component;
 
@@ -50,4 +54,18 @@ impl Guest for Component {
             delay.delay_ns(100_000);
         }
     }
+}
+
+/// Define a global allocator, since we're using `no_std`.
+/// SAFETY: We're single-threaded.
+#[global_allocator]
+static GLOBAL_ALLOCATOR: AssumeSingleThreaded<FreeListAllocator> =
+    unsafe { AssumeSingleThreaded::new(FreeListAllocator::new()) };
+
+/// Define a panic handler, since we're using `no_std`. Just infloop for
+/// now and hope we don't panic.
+#[panic_handler]
+fn panic(_panic: &core::panic::PanicInfo<'_>) -> ! {
+    // Don't panic ;-).
+    loop {}
 }
