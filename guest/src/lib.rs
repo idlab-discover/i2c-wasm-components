@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-
+#[allow(warnings)]
 mod bindings;
 
 use crate::bindings::exports::sketch::embedded::run::Guest;
@@ -69,3 +69,5 @@ fn panic(_panic: &core::panic::PanicInfo<'_>) -> ! {
     // Don't panic ;-).
     loop {}
 }
+
+bindings::export!(Component with_types_in bindings);

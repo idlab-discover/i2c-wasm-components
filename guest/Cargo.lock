@@ -58,16 +58,14 @@ dependencies = [
 name = "thesis"
 version = "0.0.0"
 dependencies = [
+ "bitflags",
  "compiler_builtins",
  "lol_alloc",
- "wit-bindgen",
+ "wit-bindgen-rt",
 ]
 
 [[package]]
-name = "wit-bindgen"
-version = "0.18.0"
+name = "wit-bindgen-rt"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5408d742fcdf418b766f23b2393f0f4d9b10b72b7cd96d9525626943593e8cc0"
-dependencies = [
- "bitflags",
-]
+checksum = "781989c70b3300b1be7ffbc7095e3b56c4f208f0c109cb5d1d943b297918dd8a"
