@@ -10,13 +10,13 @@ This code is heavily influenced by the Rust crate [hd44780-driver](https://crate
 
 ### `no_std`
 To allow us to use the feature and thus use no std currently the nightly version of Rust is needed:
-```rust
+```bash
 rustup install nightly 
 # The build commando is now slightly modified
 cargo +nightly component build
 ```
 
 ## WIT
-`embedded.wit` comes from [hello-embedded](https://github.com/sunfishcode/hello-embedded) by sunfishcode. Only the `i2c` and ´delay` interfaces are used from this.
+`embedded.wit` comes from [hello-embedded](https://github.com/sunfishcode/hello-embedded) by sunfishcode. Only the `i2c` and `delay` interfaces are used from this.
 
 I had to use the same package for my `screen.wit` to make the `bindgen` in the host work, more specifically the `with`.

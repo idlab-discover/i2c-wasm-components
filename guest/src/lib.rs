@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #[allow(warnings)]
+
 mod bindings;
 
 use crate::bindings::exports::sketch::embedded::run::Guest;
