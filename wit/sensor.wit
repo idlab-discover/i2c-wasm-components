@@ -1,13 +1,13 @@
 package sketch:embedded@0.0.0;
 
-interface run {
+interface temperature {
     use i2c.{i2c};
 
-    run: func(connection: i2c, delay: delay) -> string;
+    run: func(connection: i2c) -> string;
 }
 
 world sensor {
     import i2c;
 
-    export run;
+    export temperature;
 }

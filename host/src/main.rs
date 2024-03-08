@@ -1,4 +1,4 @@
-use crate::sketch::embedded::{delay, i2c};
+use crate::sketch::embedded::i2c;
 use linux_embedded_hal::I2cdev;
 use wasmtime::{
     component::{bindgen, Component, Linker},
@@ -8,7 +8,7 @@ use wasmtime_wasi::preview2::{ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
 
 bindgen!({
     path: "../wit",
-    world: "screen",
+    world: "sensor",
     with: {
         "sketch:embedded/delay/delay": Delay,
         "sketch:embedded/i2c/i2c": I2c,
@@ -23,7 +23,7 @@ struct HostComponent {
 }
 
 impl i2c::Host for HostComponent {}
-impl delay::Host for HostComponent {}
+// impl delay::Host for HostComponent {}
 
 impl i2c::HostI2c for HostComponent {
     fn transaction(
@@ -86,22 +86,22 @@ impl i2c::HostI2c for HostComponent {
     }
 }
 
-impl delay::HostDelay for HostComponent {
-    fn delay_ns(
-        &mut self,
-        self_: wasmtime::component::Resource<delay::Delay>,
-        ns: u32,
-    ) -> wasmtime::Result<()> {
-        let _self_ = self.table.get_mut(&self_)?;
-        std::thread::sleep(std::time::Duration::from_nanos(ns.into()));
-        Ok(())
-    }
-
-    fn drop(&mut self, self_: wasmtime::component::Resource<delay::Delay>) -> wasmtime::Result<()> {
-        self.table.delete(self_)?;
-        Ok(())
-    }
-}
+// impl delay::HostDelay for HostComponent {
+//     fn delay_ns(
+//         &mut self,
+//         self_: wasmtime::component::Resource<delay::Delay>,
+//         ns: u32,
+//     ) -> wasmtime::Result<()> {
+//         let _self_ = self.table.get_mut(&self_)?;
+//         std::thread::sleep(std::time::Duration::from_nanos(ns.into()));
+//         Ok(())
+//     }
+//
+//     fn drop(&mut self, self_: wasmtime::component::Resource<delay::Delay>) -> wasmtime::Result<()> {
+//         self.table.delete(self_)?;
+//         Ok(())
+//     }
+// }
 
 struct MyState {
     host: HostComponent,
@@ -128,14 +128,14 @@ fn main() -> Result<()> {
     let mut config = Config::new();
     config.wasm_component_model(true);
     let engine = Engine::new(&config)?;
-    let component = Component::from_file(&engine, "../guest/target/wasm32-wasi/debug/thesis.wasm")?;
+    let component = Component::from_file(&engine, "../hat.wasm")?;
 
     let mut linker = Linker::new(&engine);
 
     // Bind wasi commmand world
     wasmtime_wasi::preview2::command::sync::add_to_linker(&mut linker)?;
     // Binding host
-    Screen::add_to_linker(&mut linker, |state: &mut MyState| &mut state.host)?;
+    Sensor::add_to_linker(&mut linker, |state: &mut MyState| &mut state.host)?;
 
     let wasi = WasiCtxBuilder::new()
         .inherit_stdout()
@@ -152,15 +152,19 @@ fn main() -> Result<()> {
     let i2cdev = I2cdev::new(format!("/dev/i2c-{}", 1))?;
 
     let screen = state.host.table.push(I2c(i2cdev))?;
-    let delay = state.host.table.push(Delay)?;
+    // let delay = state.host.table.push(Delay)?;
 
     let mut store = Store::new(&engine, state);
 
-    let (bindings, _) = Screen::instantiate(&mut store, &component, &linker)?;
+    let (bindings, _) = Sensor::instantiate(&mut store, &component, &linker)?;
 
-    let _ = bindings
-        .sketch_embedded_run()
-        .call_run(&mut store, screen, delay)?;
+    let res = bindings
+        .sketch_embedded_temperature()
+        // .sketch_embedded_run()
+        .call_run(&mut store, screen)?;
+        // .call_run(&mut store, screen, delay)?;
+    
+    println!("{:?}", res);
 
     Ok::<(), anyhow::Error>(())
 }
