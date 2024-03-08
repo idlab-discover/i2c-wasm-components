@@ -1,0 +1,13 @@
+package sketch:embedded@0.0.0;
+
+interface run {
+    use i2c.{i2c};
+
+    run: func(connection: i2c, delay: delay) -> string;
+}
+
+world sensor {
+    import i2c;
+
+    export run;
+}

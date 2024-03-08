@@ -19,6 +19,7 @@ adapter = "../empty.wasm"
 
 [package.metadata.component.target]
 path = "../../wit"
+world = "screen"
 
 [package.metadata.component.target.dependencies]
 

@@ -1,5 +1,5 @@
 [workspace]
-members = ["lcd", "hat", "temp"]
+members = ["lcd", "hat"]
 resolver = "2"
 
 [workspace.dependencies]

@@ -4,7 +4,6 @@
 mod bindings;
 
 use crate::bindings::exports::sketch::embedded::run::Guest;
-use crate::bindings::sketch::embedded::delay::Delay;
 use crate::bindings::sketch::embedded::i2c::I2c;
 use lol_alloc::{AssumeSingleThreaded, FreeListAllocator};
 
@@ -97,11 +96,11 @@ impl Guest for Component {
 
         let temperature_x8 = read_temperature(&mut connection);
 
-        // println!(
-        //     "Temp = {}.{} deg C",
-        //     temperature_x8 >> 3,
-        //     125 * (temperature_x8 & 0b111)
-        // );
+        format!(
+            "Temp = {}.{} deg C",
+            temperature_x8 >> 3,
+            125 * (temperature_x8 & 0b111)
+        )
     }
 }
 
