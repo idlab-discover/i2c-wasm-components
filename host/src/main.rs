@@ -41,7 +41,13 @@ impl i2c::HostI2c for HostComponent {
         address: i2c::Address,
         len: u64,
     ) -> wasmtime::Result<Result<Vec<u8>, i2c::ErrorCode>> {
-        todo!()
+        let self_ = self.table.get_mut(&self_)?;
+        let mut data = vec![0; len.try_into().unwrap()];
+
+        match embedded_hal::i2c::I2c::read(&mut self_.0, address, &mut data) {
+            Ok(()) => Ok(Ok(data)),
+            Err(_) => Ok(Err(i2c::ErrorCode::Other)),
+        }
     }
 
     fn write(
@@ -64,8 +70,14 @@ impl i2c::HostI2c for HostComponent {
         address: i2c::Address,
         write: Vec<u8>,
         read_len: u64,
-    ) -> wasmtime::Result<Result<(), i2c::ErrorCode>> {
-        todo!()
+    ) -> wasmtime::Result<Result<Vec<u8>, i2c::ErrorCode>> {
+        let self_ = self.table.get_mut(&self_)?;
+        let mut data = vec![0; read_len.try_into().unwrap()];
+
+        match embedded_hal::i2c::I2c::write_read(&mut self_.0, address, &write, &mut data) {
+            Ok(()) => Ok(Ok(data)),
+            Err(_) => Ok(Err(i2c::ErrorCode::Other)),
+        }
     }
 
     fn drop(&mut self, self_: wasmtime::component::Resource<I2c>) -> wasmtime::Result<()> {
