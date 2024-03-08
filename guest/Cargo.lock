@@ -21,6 +21,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d68bc55329711cd719c2687bb147bc06211b0521f97ef398280108ccb23227e9"
 
 [[package]]
+name = "hat"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "compiler_builtins",
+ "lol_alloc",
+ "wit-bindgen-rt",
+]
+
+[[package]]
+name = "lcd"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "compiler_builtins",
+ "lol_alloc",
+ "wit-bindgen-rt",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -55,19 +75,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "thesis"
-version = "0.0.0"
+name = "temp"
+version = "0.1.0"
 dependencies = [
- "compiler_builtins",
- "lol_alloc",
- "wit-bindgen",
+ "bitflags",
+ "wit-bindgen-rt",
 ]
 
 [[package]]
-name = "wit-bindgen"
-version = "0.18.0"
+name = "wit-bindgen-rt"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5408d742fcdf418b766f23b2393f0f4d9b10b72b7cd96d9525626943593e8cc0"
-dependencies = [
- "bitflags",
-]
+checksum = "026d24a27f6712541fa534f2954bd9e0eb66172f033c2157c0f31d106255c497"

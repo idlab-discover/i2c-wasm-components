@@ -1,0 +1,27 @@
+[package]
+name = "hat"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+lol_alloc = { workspace = true }
+bitflags = { workspace = true }
+wit-bindgen-rt = { workspace = true }
+compiler_builtins = { workspace = true }
+
+[package.metadata.component]
+# We don't need an adapter, but cargo-component doesn't yet have an option to
+# disable the adapter. As a workaround, use an empty adapter.
+adapter = "../empty.wasm"
+
+[package.metadata.component.target]
+path = "../../wit"
+
+[package.metadata.component.target.dependencies]
+
+[package.metadata.component.bindings]
+# Enable this to put `std` usage behind a feature, so that we can use `no_std`.
+std_feature = true
