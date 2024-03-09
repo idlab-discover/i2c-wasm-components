@@ -83,7 +83,7 @@ interface i2c {
            address: address,
            write: list<u8>,
            read-len: u64,
-        ) -> result<_, error-code>;
+        ) -> result<list<u8>, error-code>;
     }
 }
 

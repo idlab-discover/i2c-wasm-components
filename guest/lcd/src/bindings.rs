@@ -510,11 +510,11 @@ pub mod sketch {
                     address: Address,
                     write: &[u8],
                     read_len: u64,
-                ) -> Result<(), ErrorCode> {
+                ) -> Result<_rt::Vec<u8>, ErrorCode> {
                     unsafe {
-                        #[repr(align(1))]
-                        struct RetArea([::core::mem::MaybeUninit<u8>; 3]);
-                        let mut ret_area = RetArea([::core::mem::MaybeUninit::uninit(); 3]);
+                        #[repr(align(4))]
+                        struct RetArea([::core::mem::MaybeUninit<u8>; 12]);
+                        let mut ret_area = RetArea([::core::mem::MaybeUninit::uninit(); 12]);
                         let vec0 = write;
                         let ptr0 = vec0.as_ptr().cast::<u8>();
                         let len0 = vec0.len();
@@ -541,22 +541,28 @@ pub mod sketch {
                         let l2 = i32::from(*ptr1.add(0).cast::<u8>());
                         match l2 {
                             0 => {
-                                let e = ();
+                                let e = {
+                                    let l3 = *ptr1.add(4).cast::<*mut u8>();
+                                    let l4 = *ptr1.add(8).cast::<usize>();
+                                    let len5 = l4;
+
+                                    _rt::Vec::from_raw_parts(l3.cast(), len5, len5)
+                                };
                                 Ok(e)
                             }
                             1 => {
                                 let e = {
-                                    let l3 = i32::from(*ptr1.add(1).cast::<u8>());
-                                    let v5 = match l3 {
+                                    let l6 = i32::from(*ptr1.add(4).cast::<u8>());
+                                    let v8 = match l6 {
                                         0 => ErrorCode::Bus,
                                         1 => ErrorCode::ArbitrationLoss,
                                         2 => {
-                                            let e5 = {
-                                                let l4 = i32::from(*ptr1.add(2).cast::<u8>());
+                                            let e8 = {
+                                                let l7 = i32::from(*ptr1.add(5).cast::<u8>());
 
-                                                NoAcknowledgeSource::_lift(l4 as u8)
+                                                NoAcknowledgeSource::_lift(l7 as u8)
                                             };
-                                            ErrorCode::NoAcknowledge(e5)
+                                            ErrorCode::NoAcknowledge(e8)
                                         }
                                         3 => ErrorCode::Overrun,
                                         n => {
@@ -565,7 +571,7 @@ pub mod sketch {
                                         }
                                     };
 
-                                    v5
+                                    v8
                                 };
                                 Err(e)
                             }
@@ -581,7 +587,7 @@ pub mod exports {
     pub mod sketch {
         pub mod embedded {
             #[allow(clippy::all)]
-            pub mod run {
+            pub mod lcd {
                 #[used]
                 #[doc(hidden)]
                 #[cfg(target_arch = "wasm32")]
@@ -591,8 +597,8 @@ pub mod exports {
                 pub type I2c = super::super::super::super::sketch::embedded::i2c::I2c;
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
-                pub unsafe fn _export_run_cabi<T: Guest>(arg0: i32, arg1: i32) {
-                    T::run(
+                pub unsafe fn _export_write_cabi<T: Guest>(arg0: i32, arg1: i32) {
+                    T::write(
                         super::super::super::super::sketch::embedded::i2c::I2c::from_handle(
                             arg0 as u32,
                         ),
@@ -602,21 +608,21 @@ pub mod exports {
                     );
                 }
                 pub trait Guest {
-                    fn run(connection: I2c, delay: Delay);
+                    fn write(connection: I2c, delay: Delay);
                 }
                 #[doc(hidden)]
 
-                macro_rules! __export_sketch_embedded_run_0_0_0_cabi{
+                macro_rules! __export_sketch_embedded_lcd_0_0_0_cabi{
         ($ty:ident with_types_in $($path_to_types:tt)*) => (const _: () = {
 
-          #[export_name = "sketch:embedded/run@0.0.0#run"]
-          unsafe extern "C" fn export_run(arg0: i32,arg1: i32,) {
-            $($path_to_types)*::_export_run_cabi::<$ty>(arg0, arg1)
+          #[export_name = "sketch:embedded/lcd@0.0.0#write"]
+          unsafe extern "C" fn export_write(arg0: i32,arg1: i32,) {
+            $($path_to_types)*::_export_write_cabi::<$ty>(arg0, arg1)
           }
         };);
       }
                 #[doc(hidden)]
-                pub(crate) use __export_sketch_embedded_run_0_0_0_cabi;
+                pub(crate) use __export_sketch_embedded_lcd_0_0_0_cabi;
             }
         }
     }
@@ -855,7 +861,7 @@ mod _rt {
 macro_rules! __export_screen_impl {
   ($ty:ident) => (self::export!($ty with_types_in self););
   ($ty:ident with_types_in $($path_to_types_root:tt)*) => (
-  $($path_to_types_root)*::exports::sketch::embedded::run::__export_sketch_embedded_run_0_0_0_cabi!($ty with_types_in $($path_to_types_root)*::exports::sketch::embedded::run);
+  $($path_to_types_root)*::exports::sketch::embedded::lcd::__export_sketch_embedded_lcd_0_0_0_cabi!($ty with_types_in $($path_to_types_root)*::exports::sketch::embedded::lcd);
   )
 }
 #[doc(inline)]
@@ -864,8 +870,8 @@ pub(crate) use __export_screen_impl as export;
 #[cfg(target_arch = "wasm32")]
 #[link_section = "component-type:wit-bindgen:0.21.0:screen:encoded world"]
 #[doc(hidden)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 842] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xcd\x05\x01A\x02\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 844] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xcf\x05\x01A\x02\x01\
 A\x08\x01B\x04\x04\0\x05delay\x03\x01\x01h\0\x01@\x02\x04self\x01\x02nsy\x01\0\x04\
 \0\x16[method]delay.delay-ns\x01\x02\x03\x01\x1bsketch:embedded/delay@0.0.0\x05\0\
 \x01B\x18\x01{\x04\0\x07address\x03\0\0\x01m\x03\x07address\x04data\x07unknown\x04\
@@ -877,11 +883,11 @@ A\x08\x01B\x04\x04\0\x05delay\x03\x01\x01h\0\x01@\x02\x04self\x01\x02nsy\x01\0\x
 tion\x01\x0e\x01j\x01\x06\x01\x05\x01@\x03\x04self\x0a\x07address\x01\x03lenw\0\x0f\
 \x04\0\x10[method]i2c.read\x01\x10\x01j\0\x01\x05\x01@\x03\x04self\x0a\x07addres\
 s\x01\x04data\x06\0\x11\x04\0\x11[method]i2c.write\x01\x12\x01@\x04\x04self\x0a\x07\
-address\x01\x05write\x06\x08read-lenw\0\x11\x04\0\x16[method]i2c.write-read\x01\x13\
+address\x01\x05write\x06\x08read-lenw\0\x0f\x04\0\x16[method]i2c.write-read\x01\x13\
 \x03\x01\x19sketch:embedded/i2c@0.0.0\x05\x01\x02\x03\0\0\x05delay\x02\x03\0\x01\
 \x03i2c\x01B\x08\x02\x03\x02\x01\x02\x04\0\x05delay\x03\0\0\x02\x03\x02\x01\x03\x04\
 \0\x03i2c\x03\0\x02\x01i\x03\x01i\x01\x01@\x02\x0aconnection\x04\x05delay\x05\x01\
-\0\x04\0\x03run\x01\x06\x04\x01\x19sketch:embedded/run@0.0.0\x05\x04\x04\x01\x1c\
+\0\x04\0\x05write\x01\x06\x04\x01\x19sketch:embedded/lcd@0.0.0\x05\x04\x04\x01\x1c\
 sketch:embedded/screen@0.0.0\x04\0\x0b\x0c\x01\0\x06screen\x03\0\0\0G\x09produce\
 rs\x01\x0cprocessed-by\x02\x0dwit-component\x070.201.0\x10wit-bindgen-rust\x060.\
 21.0";
