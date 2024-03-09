@@ -21,13 +21,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d68bc55329711cd719c2687bb147bc06211b0521f97ef398280108ccb23227e9"
 
 [[package]]
+name = "embedded-hal"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "361a90feb7004eca4019fb28352a9465666b24f840f5c3cddf0ff13920590b89"
+
+[[package]]
 name = "hat"
 version = "0.0.0"
 dependencies = [
  "bitflags",
  "compiler_builtins",
+ "hts221",
  "lol_alloc",
  "wit-bindgen-rt",
+]
+
+[[package]]
+name = "hts221"
+version = "1.0.0"
+source = "git+https://github.com/Zelzahn/hts221#86e0151ba2fa36a61d7a7dac1becc088c8b9b6e1"
+dependencies = [
+ "embedded-hal",
 ]
 
 [[package]]

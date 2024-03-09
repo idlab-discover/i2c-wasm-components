@@ -509,7 +509,7 @@ pub mod exports {
     pub mod sketch {
         pub mod embedded {
             #[allow(clippy::all)]
-            pub mod temperature {
+            pub mod hts {
                 #[used]
                 #[doc(hidden)]
                 #[cfg(target_arch = "wasm32")]
@@ -519,51 +519,114 @@ pub mod exports {
                 pub type I2c = super::super::super::super::sketch::embedded::i2c::I2c;
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
-                pub unsafe fn _export_get_cabi<T: Guest>(arg0: i32) -> *mut u8 {
-                    let result0 = T::get(
+                pub unsafe fn _export_get_temperature_cabi<T: Guest>(arg0: i32) -> *mut u8 {
+                    let result0 = T::get_temperature(
                         super::super::super::super::sketch::embedded::i2c::I2c::from_handle(
                             arg0 as u32,
                         ),
                     );
                     let ptr1 = _RET_AREA.0.as_mut_ptr().cast::<u8>();
-                    let vec2 = (result0.into_bytes()).into_boxed_slice();
-                    let ptr2 = vec2.as_ptr().cast::<u8>();
-                    let len2 = vec2.len();
-                    ::core::mem::forget(vec2);
-                    *ptr1.add(4).cast::<usize>() = len2;
-                    *ptr1.add(0).cast::<*mut u8>() = ptr2.cast_mut();
+                    match result0 {
+                        Ok(e) => {
+                            *ptr1.add(0).cast::<u8>() = (0i32) as u8;
+                            let vec2 = (e.into_bytes()).into_boxed_slice();
+                            let ptr2 = vec2.as_ptr().cast::<u8>();
+                            let len2 = vec2.len();
+                            ::core::mem::forget(vec2);
+                            *ptr1.add(8).cast::<usize>() = len2;
+                            *ptr1.add(4).cast::<*mut u8>() = ptr2.cast_mut();
+                        }
+                        Err(e) => {
+                            *ptr1.add(0).cast::<u8>() = (1i32) as u8;
+                            *ptr1.add(4).cast::<u16>() = (_rt::as_i32(e)) as u16;
+                        }
+                    };
                     ptr1
                 }
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
-                pub unsafe fn __post_return_get<T: Guest>(arg0: *mut u8) {
-                    let l0 = *arg0.add(0).cast::<*mut u8>();
-                    let l1 = *arg0.add(4).cast::<usize>();
-                    _rt::cabi_dealloc(l0, l1, 1);
+                pub unsafe fn __post_return_get_temperature<T: Guest>(arg0: *mut u8) {
+                    let l0 = i32::from(*arg0.add(0).cast::<u8>());
+                    match l0 {
+                        0 => {
+                            let l1 = *arg0.add(4).cast::<*mut u8>();
+                            let l2 = *arg0.add(8).cast::<usize>();
+                            _rt::cabi_dealloc(l1, l2, 1);
+                        }
+                        _ => (),
+                    }
+                }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn _export_get_humidity_cabi<T: Guest>(arg0: i32) -> *mut u8 {
+                    let result0 = T::get_humidity(
+                        super::super::super::super::sketch::embedded::i2c::I2c::from_handle(
+                            arg0 as u32,
+                        ),
+                    );
+                    let ptr1 = _RET_AREA.0.as_mut_ptr().cast::<u8>();
+                    match result0 {
+                        Ok(e) => {
+                            *ptr1.add(0).cast::<u8>() = (0i32) as u8;
+                            let vec2 = (e.into_bytes()).into_boxed_slice();
+                            let ptr2 = vec2.as_ptr().cast::<u8>();
+                            let len2 = vec2.len();
+                            ::core::mem::forget(vec2);
+                            *ptr1.add(8).cast::<usize>() = len2;
+                            *ptr1.add(4).cast::<*mut u8>() = ptr2.cast_mut();
+                        }
+                        Err(e) => {
+                            *ptr1.add(0).cast::<u8>() = (1i32) as u8;
+                            *ptr1.add(4).cast::<u16>() = (_rt::as_i32(e)) as u16;
+                        }
+                    };
+                    ptr1
+                }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn __post_return_get_humidity<T: Guest>(arg0: *mut u8) {
+                    let l0 = i32::from(*arg0.add(0).cast::<u8>());
+                    match l0 {
+                        0 => {
+                            let l1 = *arg0.add(4).cast::<*mut u8>();
+                            let l2 = *arg0.add(8).cast::<usize>();
+                            _rt::cabi_dealloc(l1, l2, 1);
+                        }
+                        _ => (),
+                    }
                 }
                 pub trait Guest {
-                    fn get(connection: I2c) -> _rt::String;
+                    fn get_temperature(connection: I2c) -> Result<_rt::String, u16>;
+                    fn get_humidity(connection: I2c) -> Result<_rt::String, u16>;
                 }
                 #[doc(hidden)]
 
-                macro_rules! __export_sketch_embedded_temperature_0_0_0_cabi{
-        ($ty:ident with_types_in $($path_to_types:tt)*) => (const _: () = {
+                macro_rules! __export_sketch_embedded_hts_0_0_0_cabi{
+      ($ty:ident with_types_in $($path_to_types:tt)*) => (const _: () = {
 
-          #[export_name = "sketch:embedded/temperature@0.0.0#get"]
-          unsafe extern "C" fn export_get(arg0: i32,) -> *mut u8 {
-            $($path_to_types)*::_export_get_cabi::<$ty>(arg0)
-          }
-          #[export_name = "cabi_post_sketch:embedded/temperature@0.0.0#get"]
-          unsafe extern "C" fn _post_return_get(arg0: *mut u8,) {
-            $($path_to_types)*::__post_return_get::<$ty>(arg0)
-          }
-        };);
-      }
+        #[export_name = "sketch:embedded/hts@0.0.0#get-temperature"]
+        unsafe extern "C" fn export_get_temperature(arg0: i32,) -> *mut u8 {
+          $($path_to_types)*::_export_get_temperature_cabi::<$ty>(arg0)
+        }
+        #[export_name = "cabi_post_sketch:embedded/hts@0.0.0#get-temperature"]
+        unsafe extern "C" fn _post_return_get_temperature(arg0: *mut u8,) {
+          $($path_to_types)*::__post_return_get_temperature::<$ty>(arg0)
+        }
+        #[export_name = "sketch:embedded/hts@0.0.0#get-humidity"]
+        unsafe extern "C" fn export_get_humidity(arg0: i32,) -> *mut u8 {
+          $($path_to_types)*::_export_get_humidity_cabi::<$ty>(arg0)
+        }
+        #[export_name = "cabi_post_sketch:embedded/hts@0.0.0#get-humidity"]
+        unsafe extern "C" fn _post_return_get_humidity(arg0: *mut u8,) {
+          $($path_to_types)*::__post_return_get_humidity::<$ty>(arg0)
+        }
+      };);
+    }
                 #[doc(hidden)]
-                pub(crate) use __export_sketch_embedded_temperature_0_0_0_cabi;
+                pub(crate) use __export_sketch_embedded_hts_0_0_0_cabi;
                 #[repr(align(4))]
-                struct _RetArea([::core::mem::MaybeUninit<u8>; 8]);
-                static mut _RET_AREA: _RetArea = _RetArea([::core::mem::MaybeUninit::uninit(); 8]);
+                struct _RetArea([::core::mem::MaybeUninit<u8>; 12]);
+                static mut _RET_AREA: _RetArea = _RetArea([::core::mem::MaybeUninit::uninit(); 12]);
             }
         }
     }
@@ -803,7 +866,7 @@ mod _rt {
 macro_rules! __export_sensor_impl {
   ($ty:ident) => (self::export!($ty with_types_in self););
   ($ty:ident with_types_in $($path_to_types_root:tt)*) => (
-  $($path_to_types_root)*::exports::sketch::embedded::temperature::__export_sketch_embedded_temperature_0_0_0_cabi!($ty with_types_in $($path_to_types_root)*::exports::sketch::embedded::temperature);
+  $($path_to_types_root)*::exports::sketch::embedded::hts::__export_sketch_embedded_hts_0_0_0_cabi!($ty with_types_in $($path_to_types_root)*::exports::sketch::embedded::hts);
   )
 }
 #[doc(inline)]
@@ -812,8 +875,8 @@ pub(crate) use __export_sensor_impl as export;
 #[cfg(target_arch = "wasm32")]
 #[link_section = "component-type:wit-bindgen:0.21.0:sensor:encoded world"]
 #[doc(hidden)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 724] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xd7\x04\x01A\x02\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 751] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xf2\x04\x01A\x02\x01\
 A\x05\x01B\x18\x01{\x04\0\x07address\x03\0\0\x01m\x03\x07address\x04data\x07unkn\
 own\x04\0\x15no-acknowledge-source\x03\0\x02\x01q\x05\x03bus\0\0\x10arbitration-\
 loss\0\0\x0eno-acknowledge\x01\x03\0\x07overrun\0\0\x05other\0\0\x04\0\x0aerror-\
@@ -825,11 +888,11 @@ lenw\0\x0f\x04\0\x10[method]i2c.read\x01\x10\x01j\0\x01\x05\x01@\x03\x04self\x0a
 \x07address\x01\x04data\x06\0\x11\x04\0\x11[method]i2c.write\x01\x12\x01@\x04\x04\
 self\x0a\x07address\x01\x05write\x06\x08read-lenw\0\x0f\x04\0\x16[method]i2c.wri\
 te-read\x01\x13\x03\x01\x19sketch:embedded/i2c@0.0.0\x05\0\x02\x03\0\0\x03i2c\x01\
-B\x05\x02\x03\x02\x01\x01\x04\0\x03i2c\x03\0\0\x01i\x01\x01@\x01\x0aconnection\x02\
-\0s\x04\0\x03get\x01\x03\x04\x01!sketch:embedded/temperature@0.0.0\x05\x02\x04\x01\
-\x1csketch:embedded/sensor@0.0.0\x04\0\x0b\x0c\x01\0\x06sensor\x03\0\0\0G\x09pro\
-ducers\x01\x0cprocessed-by\x02\x0dwit-component\x070.201.0\x10wit-bindgen-rust\x06\
-0.21.0";
+B\x07\x02\x03\x02\x01\x01\x04\0\x03i2c\x03\0\0\x01i\x01\x01j\x01s\x01{\x01@\x01\x0a\
+connection\x02\0\x03\x04\0\x0fget-temperature\x01\x04\x04\0\x0cget-humidity\x01\x04\
+\x04\x01\x19sketch:embedded/hts@0.0.0\x05\x02\x04\x01\x1csketch:embedded/sensor@\
+0.0.0\x04\0\x0b\x0c\x01\0\x06sensor\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\
+\x0dwit-component\x070.201.0\x10wit-bindgen-rust\x060.21.0";
 
 #[inline(never)]
 #[doc(hidden)]
