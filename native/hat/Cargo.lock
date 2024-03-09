@@ -98,7 +98,16 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "embedded-hal",
+ "hts221",
  "linux-embedded-hal",
+]
+
+[[package]]
+name = "hts221"
+version = "1.0.0"
+source = "git+https://github.com/Zelzahn/hts221#86e0151ba2fa36a61d7a7dac1becc088c8b9b6e1"
+dependencies = [
+ "embedded-hal",
 ]
 
 [[package]]
