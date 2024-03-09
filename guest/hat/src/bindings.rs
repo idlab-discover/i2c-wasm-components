@@ -519,8 +519,8 @@ pub mod exports {
                 pub type I2c = super::super::super::super::sketch::embedded::i2c::I2c;
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
-                pub unsafe fn _export_run_cabi<T: Guest>(arg0: i32) -> *mut u8 {
-                    let result0 = T::run(
+                pub unsafe fn _export_get_cabi<T: Guest>(arg0: i32) -> *mut u8 {
+                    let result0 = T::get(
                         super::super::super::super::sketch::embedded::i2c::I2c::from_handle(
                             arg0 as u32,
                         ),
@@ -536,26 +536,26 @@ pub mod exports {
                 }
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
-                pub unsafe fn __post_return_run<T: Guest>(arg0: *mut u8) {
+                pub unsafe fn __post_return_get<T: Guest>(arg0: *mut u8) {
                     let l0 = *arg0.add(0).cast::<*mut u8>();
                     let l1 = *arg0.add(4).cast::<usize>();
                     _rt::cabi_dealloc(l0, l1, 1);
                 }
                 pub trait Guest {
-                    fn run(connection: I2c) -> _rt::String;
+                    fn get(connection: I2c) -> _rt::String;
                 }
                 #[doc(hidden)]
 
                 macro_rules! __export_sketch_embedded_temperature_0_0_0_cabi{
         ($ty:ident with_types_in $($path_to_types:tt)*) => (const _: () = {
 
-          #[export_name = "sketch:embedded/temperature@0.0.0#run"]
-          unsafe extern "C" fn export_run(arg0: i32,) -> *mut u8 {
-            $($path_to_types)*::_export_run_cabi::<$ty>(arg0)
+          #[export_name = "sketch:embedded/temperature@0.0.0#get"]
+          unsafe extern "C" fn export_get(arg0: i32,) -> *mut u8 {
+            $($path_to_types)*::_export_get_cabi::<$ty>(arg0)
           }
-          #[export_name = "cabi_post_sketch:embedded/temperature@0.0.0#run"]
-          unsafe extern "C" fn _post_return_run(arg0: *mut u8,) {
-            $($path_to_types)*::__post_return_run::<$ty>(arg0)
+          #[export_name = "cabi_post_sketch:embedded/temperature@0.0.0#get"]
+          unsafe extern "C" fn _post_return_get(arg0: *mut u8,) {
+            $($path_to_types)*::__post_return_get::<$ty>(arg0)
           }
         };);
       }
@@ -826,7 +826,7 @@ lenw\0\x0f\x04\0\x10[method]i2c.read\x01\x10\x01j\0\x01\x05\x01@\x03\x04self\x0a
 self\x0a\x07address\x01\x05write\x06\x08read-lenw\0\x0f\x04\0\x16[method]i2c.wri\
 te-read\x01\x13\x03\x01\x19sketch:embedded/i2c@0.0.0\x05\0\x02\x03\0\0\x03i2c\x01\
 B\x05\x02\x03\x02\x01\x01\x04\0\x03i2c\x03\0\0\x01i\x01\x01@\x01\x0aconnection\x02\
-\0s\x04\0\x03run\x01\x03\x04\x01!sketch:embedded/temperature@0.0.0\x05\x02\x04\x01\
+\0s\x04\0\x03get\x01\x03\x04\x01!sketch:embedded/temperature@0.0.0\x05\x02\x04\x01\
 \x1csketch:embedded/sensor@0.0.0\x04\0\x0b\x0c\x01\0\x06sensor\x03\0\0\0G\x09pro\
 ducers\x01\x0cprocessed-by\x02\x0dwit-component\x070.201.0\x10wit-bindgen-rust\x06\
 0.21.0";

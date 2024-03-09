@@ -1,0 +1,31 @@
+package sketch:embedded@0.0.0;
+
+interface lcd {
+    use delay.{delay};
+    use i2c.{i2c};
+
+    write: func(connection: i2c, delay: delay, message: string);
+}
+
+interface temperature {
+    use i2c.{i2c};
+
+    get: func(connection: i2c) -> string;
+}
+
+world connection {
+    import i2c;
+}
+
+world sensor {
+    include connection;
+
+    export temperature;
+}
+
+world screen {
+    import delay;
+    include connection;
+
+    export lcd;
+}

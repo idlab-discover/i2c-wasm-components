@@ -4,7 +4,7 @@
 #[allow(warnings)]
 mod bindings;
 
-use crate::bindings::exports::sketch::embedded::run::Guest;
+use crate::bindings::exports::sketch::embedded::lcd::Guest;
 use crate::bindings::sketch::embedded::delay::Delay;
 use crate::bindings::sketch::embedded::i2c::I2c;
 use lol_alloc::{AssumeSingleThreaded, FreeListAllocator};
@@ -37,7 +37,7 @@ fn write(connection: &mut I2c, byte: u8, data: bool, delay: &mut Delay) {
 }
 
 impl Guest for Component {
-    fn run(mut connection: I2c, mut delay: Delay) {
+    fn write(mut connection: I2c, mut delay: Delay, message: String) {
         // reset
         write(&mut connection, 0b0000_0010, false, &mut delay);
         delay.delay_ns(100_000);
@@ -50,7 +50,7 @@ impl Guest for Component {
         write(&mut connection, 0b0000_1111, false, &mut delay);
         delay.delay_ns(100_000);
 
-        for &b in "hello world".as_bytes() {
+        for &b in message.as_bytes() {
             write(&mut connection, b, true, &mut delay);
             delay.delay_ns(100_000);
         }
