@@ -4,84 +4,6 @@
 pub mod sketch {
     pub mod embedded {
         #[allow(clippy::all)]
-        pub mod delay {
-            #[used]
-            #[doc(hidden)]
-            #[cfg(target_arch = "wasm32")]
-            static __FORCE_SECTION_REF: fn() =
-                super::super::super::__link_custom_section_describing_imports;
-            use super::super::super::_rt;
-            /// Delay with up to nanosecond precision.
-
-            #[derive(Debug)]
-            #[repr(transparent)]
-            pub struct Delay {
-                handle: _rt::Resource<Delay>,
-            }
-
-            impl Delay {
-                #[doc(hidden)]
-                pub unsafe fn from_handle(handle: u32) -> Self {
-                    Self {
-                        handle: _rt::Resource::from_handle(handle),
-                    }
-                }
-
-                #[doc(hidden)]
-                pub fn take_handle(&self) -> u32 {
-                    _rt::Resource::take_handle(&self.handle)
-                }
-
-                #[doc(hidden)]
-                pub fn handle(&self) -> u32 {
-                    _rt::Resource::handle(&self.handle)
-                }
-            }
-
-            unsafe impl _rt::WasmResource for Delay {
-                #[inline]
-                unsafe fn drop(_handle: u32) {
-                    #[cfg(not(target_arch = "wasm32"))]
-                    unreachable!();
-
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        #[link(wasm_import_module = "sketch:embedded/delay@0.0.0")]
-                        extern "C" {
-                            #[link_name = "[resource-drop]delay"]
-                            fn drop(_: u32);
-                        }
-
-                        drop(_handle);
-                    }
-                }
-            }
-
-            impl Delay {
-                #[allow(unused_unsafe, clippy::all)]
-                /// Pauses execution for at minimum `ns` nanoseconds. Pause can be
-                /// longer if the implementation requires it due to precision/timing
-                /// issues.
-                pub fn delay_ns(&self, ns: u32) {
-                    unsafe {
-                        #[cfg(target_arch = "wasm32")]
-                        #[link(wasm_import_module = "sketch:embedded/delay@0.0.0")]
-                        extern "C" {
-                            #[link_name = "[method]delay.delay-ns"]
-                            fn wit_import(_: i32, _: i32);
-                        }
-
-                        #[cfg(not(target_arch = "wasm32"))]
-                        fn wit_import(_: i32, _: i32) {
-                            unreachable!()
-                        }
-                        wit_import((self).handle() as i32, _rt::as_i32(&ns));
-                    }
-                }
-            }
-        }
-
-        #[allow(clippy::all)]
         pub mod i2c {
             #[used]
             #[doc(hidden)]
@@ -587,47 +509,67 @@ pub mod exports {
     pub mod sketch {
         pub mod embedded {
             #[allow(clippy::all)]
-            pub mod run {
+            pub mod temperature {
                 #[used]
                 #[doc(hidden)]
                 #[cfg(target_arch = "wasm32")]
                 static __FORCE_SECTION_REF: fn() =
                     super::super::super::super::__link_custom_section_describing_imports;
-                pub type Delay = super::super::super::super::sketch::embedded::delay::Delay;
+                use super::super::super::super::_rt;
                 pub type I2c = super::super::super::super::sketch::embedded::i2c::I2c;
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
-                pub unsafe fn _export_run_cabi<T: Guest>(arg0: i32, arg1: i32) {
-                    T::run(
+                pub unsafe fn _export_run_cabi<T: Guest>(arg0: i32) -> *mut u8 {
+                    let result0 = T::run(
                         super::super::super::super::sketch::embedded::i2c::I2c::from_handle(
                             arg0 as u32,
                         ),
-                        super::super::super::super::sketch::embedded::delay::Delay::from_handle(
-                            arg1 as u32,
-                        ),
                     );
+                    let ptr1 = _RET_AREA.0.as_mut_ptr().cast::<u8>();
+                    let vec2 = (result0.into_bytes()).into_boxed_slice();
+                    let ptr2 = vec2.as_ptr().cast::<u8>();
+                    let len2 = vec2.len();
+                    ::core::mem::forget(vec2);
+                    *ptr1.add(4).cast::<usize>() = len2;
+                    *ptr1.add(0).cast::<*mut u8>() = ptr2.cast_mut();
+                    ptr1
+                }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn __post_return_run<T: Guest>(arg0: *mut u8) {
+                    let l0 = *arg0.add(0).cast::<*mut u8>();
+                    let l1 = *arg0.add(4).cast::<usize>();
+                    _rt::cabi_dealloc(l0, l1, 1);
                 }
                 pub trait Guest {
-                    fn run(connection: I2c, delay: Delay);
+                    fn run(connection: I2c) -> _rt::String;
                 }
                 #[doc(hidden)]
 
-                macro_rules! __export_sketch_embedded_run_0_0_0_cabi{
+                macro_rules! __export_sketch_embedded_temperature_0_0_0_cabi{
         ($ty:ident with_types_in $($path_to_types:tt)*) => (const _: () = {
 
-          #[export_name = "sketch:embedded/run@0.0.0#run"]
-          unsafe extern "C" fn export_run(arg0: i32,arg1: i32,) {
-            $($path_to_types)*::_export_run_cabi::<$ty>(arg0, arg1)
+          #[export_name = "sketch:embedded/temperature@0.0.0#run"]
+          unsafe extern "C" fn export_run(arg0: i32,) -> *mut u8 {
+            $($path_to_types)*::_export_run_cabi::<$ty>(arg0)
+          }
+          #[export_name = "cabi_post_sketch:embedded/temperature@0.0.0#run"]
+          unsafe extern "C" fn _post_return_run(arg0: *mut u8,) {
+            $($path_to_types)*::__post_return_run::<$ty>(arg0)
           }
         };);
       }
                 #[doc(hidden)]
-                pub(crate) use __export_sketch_embedded_run_0_0_0_cabi;
+                pub(crate) use __export_sketch_embedded_temperature_0_0_0_cabi;
+                #[repr(align(4))]
+                struct _RetArea([::core::mem::MaybeUninit<u8>; 8]);
+                static mut _RET_AREA: _RetArea = _RetArea([::core::mem::MaybeUninit::uninit(); 8]);
             }
         }
     }
 }
 mod _rt {
+    pub use alloc_crate::vec::Vec;
 
     use core::fmt;
     use core::marker;
@@ -792,7 +734,6 @@ mod _rt {
             self as i32
         }
     }
-    pub use alloc_crate::vec::Vec;
 
     pub fn as_i64<T: AsI64>(t: T) -> i64 {
         t.as_i64()
@@ -836,6 +777,7 @@ mod _rt {
             core::hint::unreachable_unchecked()
         }
     }
+    pub use alloc_crate::string::String;
     extern crate alloc as alloc_crate;
 }
 
@@ -858,39 +800,36 @@ mod _rt {
 #[allow(unused_macros)]
 #[doc(hidden)]
 
-macro_rules! __export_screen_impl {
+macro_rules! __export_sensor_impl {
   ($ty:ident) => (self::export!($ty with_types_in self););
   ($ty:ident with_types_in $($path_to_types_root:tt)*) => (
-  $($path_to_types_root)*::exports::sketch::embedded::run::__export_sketch_embedded_run_0_0_0_cabi!($ty with_types_in $($path_to_types_root)*::exports::sketch::embedded::run);
+  $($path_to_types_root)*::exports::sketch::embedded::temperature::__export_sketch_embedded_temperature_0_0_0_cabi!($ty with_types_in $($path_to_types_root)*::exports::sketch::embedded::temperature);
   )
 }
 #[doc(inline)]
-pub(crate) use __export_screen_impl as export;
+pub(crate) use __export_sensor_impl as export;
 
 #[cfg(target_arch = "wasm32")]
-#[link_section = "component-type:wit-bindgen:0.21.0:screen:encoded world"]
+#[link_section = "component-type:wit-bindgen:0.21.0:sensor:encoded world"]
 #[doc(hidden)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 842] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xcd\x05\x01A\x02\x01\
-A\x08\x01B\x04\x04\0\x05delay\x03\x01\x01h\0\x01@\x02\x04self\x01\x02nsy\x01\0\x04\
-\0\x16[method]delay.delay-ns\x01\x02\x03\x01\x1bsketch:embedded/delay@0.0.0\x05\0\
-\x01B\x18\x01{\x04\0\x07address\x03\0\0\x01m\x03\x07address\x04data\x07unknown\x04\
-\0\x15no-acknowledge-source\x03\0\x02\x01q\x05\x03bus\0\0\x10arbitration-loss\0\0\
-\x0eno-acknowledge\x01\x03\0\x07overrun\0\0\x05other\0\0\x04\0\x0aerror-code\x03\
-\0\x04\x01p}\x01q\x02\x04read\x01w\0\x05write\x01\x06\0\x04\0\x09operation\x03\0\
-\x07\x04\0\x03i2c\x03\x01\x01h\x09\x01p\x08\x01p\x06\x01j\x01\x0c\x01\x05\x01@\x03\
-\x04self\x0a\x07address\x01\x0aoperations\x0b\0\x0d\x04\0\x17[method]i2c.transac\
-tion\x01\x0e\x01j\x01\x06\x01\x05\x01@\x03\x04self\x0a\x07address\x01\x03lenw\0\x0f\
-\x04\0\x10[method]i2c.read\x01\x10\x01j\0\x01\x05\x01@\x03\x04self\x0a\x07addres\
-s\x01\x04data\x06\0\x11\x04\0\x11[method]i2c.write\x01\x12\x01@\x04\x04self\x0a\x07\
-address\x01\x05write\x06\x08read-lenw\0\x0f\x04\0\x16[method]i2c.write-read\x01\x13\
-\x03\x01\x19sketch:embedded/i2c@0.0.0\x05\x01\x02\x03\0\0\x05delay\x02\x03\0\x01\
-\x03i2c\x01B\x08\x02\x03\x02\x01\x02\x04\0\x05delay\x03\0\0\x02\x03\x02\x01\x03\x04\
-\0\x03i2c\x03\0\x02\x01i\x03\x01i\x01\x01@\x02\x0aconnection\x04\x05delay\x05\x01\
-\0\x04\0\x03run\x01\x06\x04\x01\x19sketch:embedded/run@0.0.0\x05\x04\x04\x01\x1c\
-sketch:embedded/screen@0.0.0\x04\0\x0b\x0c\x01\0\x06screen\x03\0\0\0G\x09produce\
-rs\x01\x0cprocessed-by\x02\x0dwit-component\x070.201.0\x10wit-bindgen-rust\x060.\
-21.0";
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 724] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xd7\x04\x01A\x02\x01\
+A\x05\x01B\x18\x01{\x04\0\x07address\x03\0\0\x01m\x03\x07address\x04data\x07unkn\
+own\x04\0\x15no-acknowledge-source\x03\0\x02\x01q\x05\x03bus\0\0\x10arbitration-\
+loss\0\0\x0eno-acknowledge\x01\x03\0\x07overrun\0\0\x05other\0\0\x04\0\x0aerror-\
+code\x03\0\x04\x01p}\x01q\x02\x04read\x01w\0\x05write\x01\x06\0\x04\0\x09operati\
+on\x03\0\x07\x04\0\x03i2c\x03\x01\x01h\x09\x01p\x08\x01p\x06\x01j\x01\x0c\x01\x05\
+\x01@\x03\x04self\x0a\x07address\x01\x0aoperations\x0b\0\x0d\x04\0\x17[method]i2\
+c.transaction\x01\x0e\x01j\x01\x06\x01\x05\x01@\x03\x04self\x0a\x07address\x01\x03\
+lenw\0\x0f\x04\0\x10[method]i2c.read\x01\x10\x01j\0\x01\x05\x01@\x03\x04self\x0a\
+\x07address\x01\x04data\x06\0\x11\x04\0\x11[method]i2c.write\x01\x12\x01@\x04\x04\
+self\x0a\x07address\x01\x05write\x06\x08read-lenw\0\x0f\x04\0\x16[method]i2c.wri\
+te-read\x01\x13\x03\x01\x19sketch:embedded/i2c@0.0.0\x05\0\x02\x03\0\0\x03i2c\x01\
+B\x05\x02\x03\x02\x01\x01\x04\0\x03i2c\x03\0\0\x01i\x01\x01@\x01\x0aconnection\x02\
+\0s\x04\0\x03run\x01\x03\x04\x01!sketch:embedded/temperature@0.0.0\x05\x02\x04\x01\
+\x1csketch:embedded/sensor@0.0.0\x04\0\x0b\x0c\x01\0\x06sensor\x03\0\0\0G\x09pro\
+ducers\x01\x0cprocessed-by\x02\x0dwit-component\x070.201.0\x10wit-bindgen-rust\x06\
+0.21.0";
 
 #[inline(never)]
 #[doc(hidden)]

@@ -3,9 +3,13 @@
 #[allow(warnings)]
 mod bindings;
 
-use crate::bindings::exports::sketch::embedded::run::Guest;
+use crate::bindings::exports::sketch::embedded::temperature::Guest;
 use crate::bindings::sketch::embedded::i2c::I2c;
 use lol_alloc::{AssumeSingleThreaded, FreeListAllocator};
+
+#[macro_use]
+extern crate alloc;
+use alloc::string::String;
 
 struct Component;
 
@@ -91,7 +95,7 @@ fn read_temperature(i2c: &mut I2c) -> i16 {
     }
 }
 impl Guest for Component {
-    fn run(mut connection: I2c, mut delay: Delay) {
+    fn run(mut connection: I2c) -> String {
         while !data_available(&mut connection) {}
 
         let temperature_x8 = read_temperature(&mut connection);
