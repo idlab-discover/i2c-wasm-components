@@ -107,7 +107,7 @@ pub mod sketch {
             /// An operation used by the `transaction` method.
             #[derive(Clone)]
             pub enum Operation {
-                /// Read the give number of bytes.
+                /// Read the given number of bytes.
                 Read(u64),
                 /// Write the given bytes.
                 Write(_rt::Vec<u8>),
@@ -517,6 +517,7 @@ pub mod exports {
                     super::super::super::super::__link_custom_section_describing_imports;
                 use super::super::super::super::_rt;
                 pub type I2c = super::super::super::super::sketch::embedded::i2c::I2c;
+                pub type ErrorCode = super::super::super::super::sketch::embedded::i2c::ErrorCode;
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
                 pub unsafe fn _export_get_temperature_cabi<T: Guest>(arg0: i32) -> *mut u8 {
@@ -538,7 +539,25 @@ pub mod exports {
                         }
                         Err(e) => {
                             *ptr1.add(0).cast::<u8>() = (1i32) as u8;
-                            *ptr1.add(4).cast::<u16>() = (_rt::as_i32(e)) as u16;
+                            use super::super::super::super::sketch::embedded::i2c::ErrorCode as V3;
+                            match e {
+                                V3::Bus => {
+                                    *ptr1.add(4).cast::<u8>() = (0i32) as u8;
+                                }
+                                V3::ArbitrationLoss => {
+                                    *ptr1.add(4).cast::<u8>() = (1i32) as u8;
+                                }
+                                V3::NoAcknowledge(e) => {
+                                    *ptr1.add(4).cast::<u8>() = (2i32) as u8;
+                                    *ptr1.add(5).cast::<u8>() = (e.clone() as i32) as u8;
+                                }
+                                V3::Overrun => {
+                                    *ptr1.add(4).cast::<u8>() = (3i32) as u8;
+                                }
+                                V3::Other => {
+                                    *ptr1.add(4).cast::<u8>() = (4i32) as u8;
+                                }
+                            }
                         }
                     };
                     ptr1
@@ -577,7 +596,25 @@ pub mod exports {
                         }
                         Err(e) => {
                             *ptr1.add(0).cast::<u8>() = (1i32) as u8;
-                            *ptr1.add(4).cast::<u16>() = (_rt::as_i32(e)) as u16;
+                            use super::super::super::super::sketch::embedded::i2c::ErrorCode as V3;
+                            match e {
+                                V3::Bus => {
+                                    *ptr1.add(4).cast::<u8>() = (0i32) as u8;
+                                }
+                                V3::ArbitrationLoss => {
+                                    *ptr1.add(4).cast::<u8>() = (1i32) as u8;
+                                }
+                                V3::NoAcknowledge(e) => {
+                                    *ptr1.add(4).cast::<u8>() = (2i32) as u8;
+                                    *ptr1.add(5).cast::<u8>() = (e.clone() as i32) as u8;
+                                }
+                                V3::Overrun => {
+                                    *ptr1.add(4).cast::<u8>() = (3i32) as u8;
+                                }
+                                V3::Other => {
+                                    *ptr1.add(4).cast::<u8>() = (4i32) as u8;
+                                }
+                            }
                         }
                     };
                     ptr1
@@ -596,8 +633,8 @@ pub mod exports {
                     }
                 }
                 pub trait Guest {
-                    fn get_temperature(connection: I2c) -> Result<_rt::String, u16>;
-                    fn get_humidity(connection: I2c) -> Result<_rt::String, u16>;
+                    fn get_temperature(connection: I2c) -> Result<_rt::String, ErrorCode>;
+                    fn get_humidity(connection: I2c) -> Result<_rt::String, ErrorCode>;
                 }
                 #[doc(hidden)]
 
@@ -875,9 +912,9 @@ pub(crate) use __export_sensor_impl as export;
 #[cfg(target_arch = "wasm32")]
 #[link_section = "component-type:wit-bindgen:0.21.0:sensor:encoded world"]
 #[doc(hidden)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 751] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xf2\x04\x01A\x02\x01\
-A\x05\x01B\x18\x01{\x04\0\x07address\x03\0\0\x01m\x03\x07address\x04data\x07unkn\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 787] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x96\x05\x01A\x02\x01\
+A\x06\x01B\x18\x01{\x04\0\x07address\x03\0\0\x01m\x03\x07address\x04data\x07unkn\
 own\x04\0\x15no-acknowledge-source\x03\0\x02\x01q\x05\x03bus\0\0\x10arbitration-\
 loss\0\0\x0eno-acknowledge\x01\x03\0\x07overrun\0\0\x05other\0\0\x04\0\x0aerror-\
 code\x03\0\x04\x01p}\x01q\x02\x04read\x01w\0\x05write\x01\x06\0\x04\0\x09operati\
@@ -887,10 +924,11 @@ c.transaction\x01\x0e\x01j\x01\x06\x01\x05\x01@\x03\x04self\x0a\x07address\x01\x
 lenw\0\x0f\x04\0\x10[method]i2c.read\x01\x10\x01j\0\x01\x05\x01@\x03\x04self\x0a\
 \x07address\x01\x04data\x06\0\x11\x04\0\x11[method]i2c.write\x01\x12\x01@\x04\x04\
 self\x0a\x07address\x01\x05write\x06\x08read-lenw\0\x0f\x04\0\x16[method]i2c.wri\
-te-read\x01\x13\x03\x01\x19sketch:embedded/i2c@0.0.0\x05\0\x02\x03\0\0\x03i2c\x01\
-B\x07\x02\x03\x02\x01\x01\x04\0\x03i2c\x03\0\0\x01i\x01\x01j\x01s\x01{\x01@\x01\x0a\
-connection\x02\0\x03\x04\0\x0fget-temperature\x01\x04\x04\0\x0cget-humidity\x01\x04\
-\x04\x01\x19sketch:embedded/hts@0.0.0\x05\x02\x04\x01\x1csketch:embedded/sensor@\
+te-read\x01\x13\x03\x01\x19sketch:embedded/i2c@0.0.0\x05\0\x02\x03\0\0\x03i2c\x02\
+\x03\0\0\x0aerror-code\x01B\x09\x02\x03\x02\x01\x01\x04\0\x03i2c\x03\0\0\x02\x03\
+\x02\x01\x02\x04\0\x0aerror-code\x03\0\x02\x01i\x01\x01j\x01s\x01\x03\x01@\x01\x0a\
+connection\x04\0\x05\x04\0\x0fget-temperature\x01\x06\x04\0\x0cget-humidity\x01\x06\
+\x04\x01\x19sketch:embedded/hts@0.0.0\x05\x03\x04\x01\x1csketch:embedded/sensor@\
 0.0.0\x04\0\x0b\x0c\x01\0\x06sensor\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\
 \x0dwit-component\x070.201.0\x10wit-bindgen-rust\x060.21.0";
 

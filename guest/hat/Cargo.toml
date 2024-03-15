@@ -12,6 +12,7 @@ lol_alloc = { workspace = true }
 bitflags = { workspace = true }
 wit-bindgen-rt = { workspace = true }
 compiler_builtins = { workspace = true }
+embedded-hal = "1.0.0"
 
 [package.metadata.component]
 # We don't need an adapter, but cargo-component doesn't yet have an option to

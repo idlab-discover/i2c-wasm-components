@@ -109,10 +109,10 @@ pub fn run(
 
     let sensor = bindings.sketch_embedded_hts();
     let temperature = sensor.call_get_temperature(&mut store, connection_1)?;
-    println!("{}", temperature);
+    println!("{}", temperature?);
 
-    let humidity = sensor.call_get_temperature(&mut store, connection_2)?;
-    println!("{}", humidity);
+    let humidity = sensor.call_get_humidity(&mut store, connection_2)?;
+    println!("{}", humidity?);
 
     Ok::<(), anyhow::Error>(())
 }

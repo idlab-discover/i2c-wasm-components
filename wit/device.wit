@@ -8,10 +8,10 @@ interface lcd {
 }
 
 interface hts {
-    use i2c.{i2c};
+    use i2c.{i2c, error-code};
 
-    get-temperature: func(connection: i2c) -> result<string, u16>;
-    get-humidity: func(connection: i2c) -> result<string, u16>;
+    get-temperature: func(connection: i2c) -> result<string, error-code>;
+    get-humidity: func(connection: i2c) -> result<string, error-code>;
 }
 
 world connection {
