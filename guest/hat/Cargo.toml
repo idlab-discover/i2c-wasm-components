@@ -9,12 +9,15 @@ crate-type = ["cdylib"]
 [dependencies]
 hts221 = { git = "https://github.com/Zelzahn/hts221" }
 lol_alloc = { workspace = true }
+# wit-bindgen = "0.22.0"
 bitflags = { workspace = true }
 wit-bindgen-rt = { workspace = true }
 compiler_builtins = { workspace = true }
 embedded-hal = "1.0.0"
+wasi-embedded-hal = { git = "https://github.com/Zelzahn/wasi-embedded-hal", default-features = false, features = [ "use_alloc" ] }
 
 [package.metadata.component]
+package = "embedded:hat"
 # We don't need an adapter, but cargo-component doesn't yet have an option to
 # disable the adapter. As a workaround, use an empty adapter.
 adapter = "../empty.wasm"

@@ -16,7 +16,7 @@ bindgen!({
         "sketch:embedded/i2c/i2c": I2c,
     }
 });
-
+#[cfg(target_arch = "wasm32")]
 pub struct I2c(I2cdev);
 
 impl i2c::Host for HostComponent {}
