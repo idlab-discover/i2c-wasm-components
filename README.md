@@ -21,7 +21,7 @@ This code is heavily influenced by the Rust crate [hd44780-driver](https://crate
 ### Sensor
 This guest component is also written in Rust and uses the connection to read the current temperature from a hts221.
 
-Inspiration is taken from [hts221](https://crates.io/crates/hts221). Actually this library takes a connection as an argument, thus the library itself could be used instead of the current cherrypicked parts (which I do in the native version). But I have not found a way tell the guest that my host will implement the `embedded_hal` traits. 
+The [hts221](https://crates.io/crates/hts221) crate is used, to be precise a fork I made that adds `embedded-hal` version 1 support, in tandem with [wasi-embedded-hal](https://crates.io/crates/wasi-embedded-hal).
 
 ### `no_std`
 To allow us to use the feature and thus use no std currently the nightly version of Rust is needed:
