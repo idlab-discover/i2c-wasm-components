@@ -7,10 +7,11 @@ interface lcd {
     write: func(connection: i2c, delay: delay, message: string);
 }
 
-interface temperature {
-    use i2c.{i2c};
+interface hts {
+    use i2c.{i2c, error-code};
 
-    get: func(connection: i2c) -> string;
+    get-temperature: func(connection: i2c) -> result<string, error-code>;
+    get-humidity: func(connection: i2c) -> result<string, error-code>;
 }
 
 world connection {
@@ -20,7 +21,7 @@ world connection {
 world sensor {
     include connection;
 
-    export temperature;
+    export hts;
 }
 
 world screen {

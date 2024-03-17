@@ -21,7 +21,7 @@ fn main() -> Result<(), anyhow::Error> {
         .inherit_stdio()
         .build();
 
-    let run_sensor = false;
+    let run_sensor = true;
     let component = Component::from_file(
         &engine,
         if run_sensor {

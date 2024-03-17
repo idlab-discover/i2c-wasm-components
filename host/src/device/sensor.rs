@@ -16,7 +16,7 @@ bindgen!({
         "sketch:embedded/i2c/i2c": I2c,
     }
 });
-
+#[cfg(target_arch = "wasm32")]
 pub struct I2c(I2cdev);
 
 impl i2c::Host for HostComponent {}
@@ -97,19 +97,22 @@ pub fn run(
         wasi,
     };
 
-    let i2cdev = I2cdev::new(format!("/dev/i2c-{}", 1))?;
+    let i2cdev_1 = I2cdev::new(format!("/dev/i2c-{}", 1))?;
+    let i2cdev_2 = I2cdev::new(format!("/dev/i2c-{}", 1))?;
 
-    let connection = state.host.table.push(I2c(i2cdev))?;
+    let connection_1 = state.host.table.push(I2c(i2cdev_1))?;
+    let connection_2 = state.host.table.push(I2c(i2cdev_2))?;
 
     let mut store = Store::new(&engine, state);
 
     let (bindings, _) = Sensor::instantiate(&mut store, &component, &linker)?;
 
-    let res = bindings
-        .sketch_embedded_temperature()
-        .call_get(&mut store, connection)?;
+    let sensor = bindings.sketch_embedded_hts();
+    let temperature = sensor.call_get_temperature(&mut store, connection_1)?;
+    println!("{}", temperature?);
 
-    println!("{:?}", res);
+    let humidity = sensor.call_get_humidity(&mut store, connection_2)?;
+    println!("{}", humidity?);
 
     Ok::<(), anyhow::Error>(())
 }

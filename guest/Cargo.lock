@@ -21,13 +21,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d68bc55329711cd719c2687bb147bc06211b0521f97ef398280108ccb23227e9"
 
 [[package]]
+name = "embedded-hal"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "361a90feb7004eca4019fb28352a9465666b24f840f5c3cddf0ff13920590b89"
+
+[[package]]
 name = "hat"
 version = "0.0.0"
 dependencies = [
  "bitflags",
  "compiler_builtins",
+ "embedded-hal",
+ "hts221",
  "lol_alloc",
+ "wasi-embedded-hal",
  "wit-bindgen-rt",
+]
+
+[[package]]
+name = "hts221"
+version = "1.0.0"
+source = "git+https://github.com/Zelzahn/hts221#86e0151ba2fa36a61d7a7dac1becc088c8b9b6e1"
+dependencies = [
+ "embedded-hal",
 ]
 
 [[package]]
@@ -75,7 +92,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasi-embedded-hal"
+version = "0.0.1"
+source = "git+https://github.com/Zelzahn/wasi-embedded-hal#6ff963665ed749da344c933377ac22dfccb02161"
+dependencies = [
+ "bitflags",
+ "embedded-hal",
+ "lol_alloc",
+ "wit-bindgen-rt",
+]
+
+[[package]]
 name = "wit-bindgen-rt"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "026d24a27f6712541fa534f2954bd9e0eb66172f033c2157c0f31d106255c497"
+checksum = "fcb8738270f32a2d6739973cbbb7c1b6dd8959ce515578a6e19165853272ee64"
