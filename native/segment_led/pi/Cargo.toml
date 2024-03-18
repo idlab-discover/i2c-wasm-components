@@ -1,0 +1,13 @@
+[package]
+name = "i2c"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.81"
+chrono = "0.4.35"
+embedded-hal = "1.0.0"
+linux-embedded-hal = "0.4.0"
+rppal = { version = "0.17.1", features = ["hal"] }

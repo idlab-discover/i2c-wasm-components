@@ -1,6 +1,9 @@
 **/target
 
+**/.vscode
 
 # Added by cargo
+
+hat.wasm
 
 /target
