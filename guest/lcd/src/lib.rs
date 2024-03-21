@@ -4,10 +4,14 @@
 #[allow(warnings)]
 mod bindings;
 
-use crate::bindings::exports::sketch::embedded::lcd::Guest;
-use crate::bindings::sketch::embedded::delay::Delay;
-use crate::bindings::sketch::embedded::i2c::I2c;
+use crate::bindings::exports::lcd::Guest;
+use bindings::wasi::i2c::delay::Delay;
+use bindings::wasi::i2c::i2c::I2c;
+
 use lol_alloc::{AssumeSingleThreaded, FreeListAllocator};
+
+extern crate alloc;
+use alloc::string::String;
 
 struct Component;
 

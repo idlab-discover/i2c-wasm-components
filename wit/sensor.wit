@@ -10,15 +10,3 @@ world sensor {
         get-humidity: func(connection: i2c) -> result<string, error-code>;
     }
 }
-
-world screen {
-    // As we need both i2c and delay we just include the imports
-    include wasi:i2c/imports@0.1.0;
-
-    export lcd: interface {
-        use wasi:i2c/i2c@0.1.0.{i2c};
-        use wasi:i2c/delay@0.1.0.{delay};
-
-        write: func(connection: i2c, delay: delay, message: string);
-    }
-}

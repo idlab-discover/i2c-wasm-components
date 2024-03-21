@@ -1,0 +1,4 @@
+[i2c]
+url = "https://github.com/Zelzahn/wasi-i2c/archive/main.tar.gz"
+sha256 = "d88b22292cee30ebca4598d209c1a273afc81c10cf33def92316b3eb94a4f487"
+sha512 = "22505dba5b124e31a0d30fbdc80454e9c31e5766c275cbd40b32aa3412cf6aae9d66a4a366e67dad170afd112001685a9182949a70ace7aeee52137bbc1a0673"

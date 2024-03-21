@@ -92,9 +92,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "temp"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "wit-bindgen-rt",
+]
+
+[[package]]
 name = "wasi-embedded-hal"
-version = "0.0.1"
-source = "git+https://github.com/Zelzahn/wasi-embedded-hal#6ff963665ed749da344c933377ac22dfccb02161"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d6f50a2f8cf61975dc996d084d3a08a3dcbb79a92f3e2010aa7b026853f8d10"
 dependencies = [
  "bitflags",
  "embedded-hal",

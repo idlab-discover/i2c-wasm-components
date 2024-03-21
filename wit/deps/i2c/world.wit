@@ -1,0 +1,6 @@
+package wasi:i2c@0.1.0;
+
+world imports {
+    import i2c;
+    import delay;
+}

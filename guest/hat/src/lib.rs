@@ -3,11 +3,12 @@
 #[allow(warnings)]
 mod bindings;
 
-use crate::bindings::exports::sketch::embedded::hts::Guest;
+// use crate::bindings::exports::sketch::embedded::hts::Guest;
+use crate::bindings::exports::hts::Guest;
 use lol_alloc::{AssumeSingleThreaded, FreeListAllocator};
 use wasi_embedded_hal::add_i2c_hal;
 
-use crate::bindings::sketch::embedded::i2c;
+use bindings::wasi::i2c::i2c;
 
 #[macro_use]
 extern crate alloc;
