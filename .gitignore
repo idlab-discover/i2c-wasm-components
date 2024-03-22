@@ -2,8 +2,10 @@
 
 **/.vscode
 
-# Added by cargo
+# Ignore all wasm files, except the empty ones
+*.wasm
+!empty.wasm
 
-hat.wasm
+# Added by cargo
 
 /target
