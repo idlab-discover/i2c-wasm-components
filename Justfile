@@ -16,8 +16,5 @@ build-lcd:
 cp-lcd:
     cp guest/target/wasm32-wasi/release/lcd.wasm lcd.wasm
 
-build-command:
-    cd command && cargo  +nightly component build --release
-
 build-host:
     cd host && cargo build --release --target aarch64-unknown-linux-gnu
