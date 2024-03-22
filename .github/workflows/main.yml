@@ -1,0 +1,18 @@
+name: CI
+on:
+  push:
+    branches: [root]
+  pull_request:
+    branches: [root]
+
+jobs:
+  deps-up-to-date:
+    name: Check I2C dependency is up-to-date
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ensure `./wit/deps` are in sync
+      run: |
+        curl -Lo 'wit-deps' https://github.com/bytecodealliance/wit-deps/releases/download/v0.3.2/wit-deps-x86_64-unknown-linux-musl
+        chmod +x ./wit-deps
+        ./wit-deps lock --check

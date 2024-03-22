@@ -1,5 +1,8 @@
 **/target
 
+# Ignore all wasm files, except the empty ones
+*.wasm
+!empty.wasm
 
 # Added by cargo
 

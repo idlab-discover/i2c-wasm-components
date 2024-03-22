@@ -14,19 +14,22 @@ bitflags = { workspace = true }
 wit-bindgen-rt = { workspace = true }
 compiler_builtins = { workspace = true }
 embedded-hal = "1.0.0"
-wasi-embedded-hal = { git = "https://github.com/Zelzahn/wasi-embedded-hal", default-features = false, features = [ "use_alloc" ] }
+wasi-embedded-hal = { version = "0.2.0", default-features = false, features = [
+    "use_alloc",
+] }
 
 [package.metadata.component]
-package = "embedded:hat"
+package = "sketch:implementation"
 # We don't need an adapter, but cargo-component doesn't yet have an option to
 # disable the adapter. As a workaround, use an empty adapter.
 adapter = "../empty.wasm"
 
 [package.metadata.component.target]
 path = "../../wit"
-world = "sensor"
+world = "app"
 
 [package.metadata.component.target.dependencies]
+"wasi:i2c" = { path = "../../wit/deps/i2c" }
 
 [package.metadata.component.bindings]
 # Enable this to put `std` usage behind a feature, so that we can use `no_std`.
