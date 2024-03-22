@@ -124,7 +124,6 @@ pub fn run(
     engine: Engine,
     component: Component,
     wasi: WasiCtx,
-    device: &str,
 ) -> Result<String, anyhow::Error> {
     // Binding host
     wasi::i2c::i2c::add_to_linker(&mut linker, |state: &mut MyState| &mut state.host)?;
@@ -146,6 +145,6 @@ pub fn run(
     let (bindings, _) = App::instantiate(&mut store, &component, &linker)?;
 
     Ok(bindings
-        .run()
-        .call_run(&mut store, connection, delay, device)??)
+        .interface0
+        .call_get_temperature(&mut store, connection)??)
 }

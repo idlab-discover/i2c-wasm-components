@@ -19,9 +19,9 @@ fn main() -> Result<(), anyhow::Error> {
         .inherit_stdio()
         .build();
 
-    let component = Component::from_file(&engine, "composed.wasm")?;
+    let component = Component::from_file(&engine, "hat.wasm")?;
 
-    let res = device::run(linker, engine, component, wasi, "hat")?;
+    let res = device::run(linker, engine, component, wasi)?;
 
     println!("{:?}", res);
 

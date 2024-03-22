@@ -584,48 +584,54 @@ pub mod wasi {
     }
 }
 pub mod exports {
-    #[allow(clippy::all)]
-    pub mod lcd {
-        #[used]
-        #[doc(hidden)]
-        #[cfg(target_arch = "wasm32")]
-        static __FORCE_SECTION_REF: fn() = super::super::__link_custom_section_describing_imports;
-        use super::super::_rt;
-        pub type I2c = super::super::wasi::i2c::i2c::I2c;
-        pub type Delay = super::super::wasi::i2c::delay::Delay;
-        #[doc(hidden)]
-        #[allow(non_snake_case)]
-        pub unsafe fn _export_write_cabi<T: Guest>(
-            arg0: i32,
-            arg1: i32,
-            arg2: *mut u8,
-            arg3: usize,
-        ) {
-            let len0 = arg3;
-            let bytes0 = _rt::Vec::from_raw_parts(arg2.cast(), len0, len0);
-            T::write(
-                super::super::wasi::i2c::i2c::I2c::from_handle(arg0 as u32),
-                super::super::wasi::i2c::delay::Delay::from_handle(arg1 as u32),
-                _rt::string_lift(bytes0),
-            );
-        }
-        pub trait Guest {
-            /// use wasi:i2c/delay@0.1.0.{delay};
-            fn write(connection: I2c, delay: Delay, message: _rt::String);
-        }
-        #[doc(hidden)]
+    pub mod sketch {
+        pub mod implementation {
+            #[allow(clippy::all)]
+            pub mod lcd {
+                #[used]
+                #[doc(hidden)]
+                #[cfg(target_arch = "wasm32")]
+                static __FORCE_SECTION_REF: fn() =
+                    super::super::super::super::__link_custom_section_describing_imports;
+                use super::super::super::super::_rt;
+                pub type I2c = super::super::super::super::wasi::i2c::i2c::I2c;
+                pub type Delay = super::super::super::super::wasi::i2c::delay::Delay;
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn _export_write_cabi<T: Guest>(
+                    arg0: i32,
+                    arg1: i32,
+                    arg2: *mut u8,
+                    arg3: usize,
+                ) {
+                    let len0 = arg3;
+                    let bytes0 = _rt::Vec::from_raw_parts(arg2.cast(), len0, len0);
+                    T::write(
+                        super::super::super::super::wasi::i2c::i2c::I2c::from_handle(arg0 as u32),
+                        super::super::super::super::wasi::i2c::delay::Delay::from_handle(
+                            arg1 as u32,
+                        ),
+                        _rt::string_lift(bytes0),
+                    );
+                }
+                pub trait Guest {
+                    fn write(connection: I2c, delay: Delay, message: _rt::String);
+                }
+                #[doc(hidden)]
 
-        macro_rules! __export_lcd_cabi{
-    ($ty:ident with_types_in $($path_to_types:tt)*) => (const _: () = {
+                macro_rules! __export_sketch_implementation_lcd_cabi{
+        ($ty:ident with_types_in $($path_to_types:tt)*) => (const _: () = {
 
-      #[export_name = "lcd#write"]
-      unsafe extern "C" fn export_write(arg0: i32,arg1: i32,arg2: *mut u8,arg3: usize,) {
-        $($path_to_types)*::_export_write_cabi::<$ty>(arg0, arg1, arg2, arg3)
+          #[export_name = "sketch:implementation/lcd#write"]
+          unsafe extern "C" fn export_write(arg0: i32,arg1: i32,arg2: *mut u8,arg3: usize,) {
+            $($path_to_types)*::_export_write_cabi::<$ty>(arg0, arg1, arg2, arg3)
+          }
+        };);
       }
-    };);
-  }
-        #[doc(hidden)]
-        pub(crate) use __export_lcd_cabi;
+                #[doc(hidden)]
+                pub(crate) use __export_sketch_implementation_lcd_cabi;
+            }
+        }
     }
 }
 mod _rt {
@@ -870,7 +876,7 @@ mod _rt {
 macro_rules! __export_screen_impl {
   ($ty:ident) => (self::export!($ty with_types_in self););
   ($ty:ident with_types_in $($path_to_types_root:tt)*) => (
-  $($path_to_types_root)*::exports::lcd::__export_lcd_cabi!($ty with_types_in $($path_to_types_root)*::exports::lcd);
+  $($path_to_types_root)*::exports::sketch::implementation::lcd::__export_sketch_implementation_lcd_cabi!($ty with_types_in $($path_to_types_root)*::exports::sketch::implementation::lcd);
   )
 }
 #[doc(inline)]
@@ -879,8 +885,8 @@ pub(crate) use __export_screen_impl as export;
 #[cfg(target_arch = "wasm32")]
 #[link_section = "component-type:wit-bindgen:0.21.0:screen:encoded world"]
 #[doc(hidden)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 817] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xb4\x05\x01A\x02\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 839] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xca\x05\x01A\x02\x01\
 A\x08\x01B\x18\x01{\x04\0\x07address\x03\0\0\x01m\x03\x07address\x04data\x07unkn\
 own\x04\0\x15no-acknowledge-source\x03\0\x02\x01q\x05\x03bus\0\0\x10arbitration-\
 loss\0\0\x0eno-acknowledge\x01\x03\0\x07overrun\0\0\x05other\0\0\x04\0\x0aerror-\
@@ -896,9 +902,10 @@ te-read\x01\x13\x03\x01\x12wasi:i2c/i2c@0.1.0\x05\0\x01B\x04\x04\0\x05delay\x03\
 \x03\x01\x14wasi:i2c/delay@0.1.0\x05\x01\x02\x03\0\0\x03i2c\x02\x03\0\x01\x05del\
 ay\x01B\x08\x02\x03\x02\x01\x02\x04\0\x03i2c\x03\0\0\x02\x03\x02\x01\x03\x04\0\x05\
 delay\x03\0\x02\x01i\x01\x01i\x03\x01@\x03\x0aconnection\x04\x05delay\x05\x07mes\
-sages\x01\0\x04\0\x05write\x01\x06\x04\0\x03lcd\x05\x04\x04\x01\x1csketch:implem\
-entation/screen\x04\0\x0b\x0c\x01\0\x06screen\x03\0\0\0G\x09producers\x01\x0cpro\
-cessed-by\x02\x0dwit-component\x070.201.0\x10wit-bindgen-rust\x060.21.0";
+sages\x01\0\x04\0\x05write\x01\x06\x04\x01\x19sketch:implementation/lcd\x05\x04\x04\
+\x01\x1csketch:implementation/screen\x04\0\x0b\x0c\x01\0\x06screen\x03\0\0\0G\x09\
+producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.201.0\x10wit-bindgen-rus\
+t\x060.21.0";
 
 #[inline(never)]
 #[doc(hidden)]

@@ -27,15 +27,10 @@ world screen {
     export lcd;
 }
 
-/// This is a wrapper around devices to give a uniform interface to the host
+/// This is a wrapper around devices to give a shared interface to the host
 world app {
-    import hts;
-    import lcd;
+    include wasi:i2c/imports@0.1.0;
 
-    export run: interface {
-        use wasi:i2c/i2c@0.1.0.{i2c, error-code};
-        use wasi:i2c/delay@0.1.0.{delay};
-
-        run: func(connection: i2c, delay: delay, device: string) -> result<string, error-code>;
-    }
+    include sensor;
+    // include screen;
 }

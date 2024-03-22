@@ -4,7 +4,7 @@
 #[allow(warnings)]
 mod bindings;
 
-use crate::bindings::exports::lcd::Guest;
+use crate::bindings::exports::sketch::implementation::lcd::Guest;
 use bindings::wasi::i2c::delay::Delay;
 use bindings::wasi::i2c::i2c::I2c;
 

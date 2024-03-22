@@ -503,6 +503,84 @@ pub mod wasi {
                 }
             }
         }
+
+        #[allow(clippy::all)]
+        pub mod delay {
+            #[used]
+            #[doc(hidden)]
+            #[cfg(target_arch = "wasm32")]
+            static __FORCE_SECTION_REF: fn() =
+                super::super::super::__link_custom_section_describing_imports;
+            use super::super::super::_rt;
+            /// Delay with up to nanosecond precision.
+
+            #[derive(Debug)]
+            #[repr(transparent)]
+            pub struct Delay {
+                handle: _rt::Resource<Delay>,
+            }
+
+            impl Delay {
+                #[doc(hidden)]
+                pub unsafe fn from_handle(handle: u32) -> Self {
+                    Self {
+                        handle: _rt::Resource::from_handle(handle),
+                    }
+                }
+
+                #[doc(hidden)]
+                pub fn take_handle(&self) -> u32 {
+                    _rt::Resource::take_handle(&self.handle)
+                }
+
+                #[doc(hidden)]
+                pub fn handle(&self) -> u32 {
+                    _rt::Resource::handle(&self.handle)
+                }
+            }
+
+            unsafe impl _rt::WasmResource for Delay {
+                #[inline]
+                unsafe fn drop(_handle: u32) {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unreachable!();
+
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        #[link(wasm_import_module = "wasi:i2c/delay@0.1.0")]
+                        extern "C" {
+                            #[link_name = "[resource-drop]delay"]
+                            fn drop(_: u32);
+                        }
+
+                        drop(_handle);
+                    }
+                }
+            }
+
+            impl Delay {
+                #[allow(unused_unsafe, clippy::all)]
+                /// Pauses execution for at minimum `ns` nanoseconds. Pause can be
+                /// longer if the implementation requires it due to precision/timing
+                /// issues.
+                pub fn delay_ns(&self, ns: u32) {
+                    unsafe {
+                        #[cfg(target_arch = "wasm32")]
+                        #[link(wasm_import_module = "wasi:i2c/delay@0.1.0")]
+                        extern "C" {
+                            #[link_name = "[method]delay.delay-ns"]
+                            fn wit_import(_: i32, _: i32);
+                        }
+
+                        #[cfg(not(target_arch = "wasm32"))]
+                        fn wit_import(_: i32, _: i32) {
+                            unreachable!()
+                        }
+                        wit_import((self).handle() as i32, _rt::as_i32(&ns));
+                    }
+                }
+            }
+        }
     }
 }
 pub mod exports {
@@ -896,21 +974,21 @@ mod _rt {
 #[allow(unused_macros)]
 #[doc(hidden)]
 
-macro_rules! __export_sensor_impl {
+macro_rules! __export_app_impl {
   ($ty:ident) => (self::export!($ty with_types_in self););
   ($ty:ident with_types_in $($path_to_types_root:tt)*) => (
   $($path_to_types_root)*::exports::sketch::implementation::hts::__export_sketch_implementation_hts_cabi!($ty with_types_in $($path_to_types_root)*::exports::sketch::implementation::hts);
   )
 }
 #[doc(inline)]
-pub(crate) use __export_sensor_impl as export;
+pub(crate) use __export_app_impl as export;
 
 #[cfg(target_arch = "wasm32")]
-#[link_section = "component-type:wit-bindgen:0.21.0:sensor:encoded world"]
+#[link_section = "component-type:wit-bindgen:0.21.0:app:encoded world"]
 #[doc(hidden)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 780] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x8f\x05\x01A\x02\x01\
-A\x06\x01B\x18\x01{\x04\0\x07address\x03\0\0\x01m\x03\x07address\x04data\x07unkn\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 857] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xdf\x05\x01A\x02\x01\
+A\x08\x01B\x18\x01{\x04\0\x07address\x03\0\0\x01m\x03\x07address\x04data\x07unkn\
 own\x04\0\x15no-acknowledge-source\x03\0\x02\x01q\x05\x03bus\0\0\x10arbitration-\
 loss\0\0\x0eno-acknowledge\x01\x03\0\x07overrun\0\0\x05other\0\0\x04\0\x0aerror-\
 code\x03\0\x04\x01p}\x01q\x02\x04read\x01w\0\x05write\x01\x06\0\x04\0\x09operati\
@@ -920,13 +998,15 @@ c.transaction\x01\x0e\x01j\x01\x06\x01\x05\x01@\x03\x04self\x0a\x07address\x01\x
 lenw\0\x0f\x04\0\x10[method]i2c.read\x01\x10\x01j\0\x01\x05\x01@\x03\x04self\x0a\
 \x07address\x01\x04data\x06\0\x11\x04\0\x11[method]i2c.write\x01\x12\x01@\x04\x04\
 self\x0a\x07address\x01\x05write\x06\x08read-lenw\0\x0f\x04\0\x16[method]i2c.wri\
-te-read\x01\x13\x03\x01\x12wasi:i2c/i2c@0.1.0\x05\0\x02\x03\0\0\x03i2c\x02\x03\0\
-\0\x0aerror-code\x01B\x09\x02\x03\x02\x01\x01\x04\0\x03i2c\x03\0\0\x02\x03\x02\x01\
-\x02\x04\0\x0aerror-code\x03\0\x02\x01i\x01\x01j\x01s\x01\x03\x01@\x01\x0aconnec\
-tion\x04\0\x05\x04\0\x0fget-temperature\x01\x06\x04\0\x0cget-humidity\x01\x06\x04\
-\x01\x19sketch:implementation/hts\x05\x03\x04\x01\x1csketch:implementation/senso\
-r\x04\0\x0b\x0c\x01\0\x06sensor\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0d\
-wit-component\x070.201.0\x10wit-bindgen-rust\x060.21.0";
+te-read\x01\x13\x03\x01\x12wasi:i2c/i2c@0.1.0\x05\0\x01B\x04\x04\0\x05delay\x03\x01\
+\x01h\0\x01@\x02\x04self\x01\x02nsy\x01\0\x04\0\x16[method]delay.delay-ns\x01\x02\
+\x03\x01\x14wasi:i2c/delay@0.1.0\x05\x01\x02\x03\0\0\x03i2c\x02\x03\0\0\x0aerror\
+-code\x01B\x09\x02\x03\x02\x01\x02\x04\0\x03i2c\x03\0\0\x02\x03\x02\x01\x03\x04\0\
+\x0aerror-code\x03\0\x02\x01i\x01\x01j\x01s\x01\x03\x01@\x01\x0aconnection\x04\0\
+\x05\x04\0\x0fget-temperature\x01\x06\x04\0\x0cget-humidity\x01\x06\x04\x01\x19s\
+ketch:implementation/hts\x05\x04\x04\x01\x19sketch:implementation/app\x04\0\x0b\x09\
+\x01\0\x03app\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x07\
+0.201.0\x10wit-bindgen-rust\x060.21.0";
 
 #[inline(never)]
 #[doc(hidden)]

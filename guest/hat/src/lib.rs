@@ -3,7 +3,6 @@
 #[allow(warnings)]
 mod bindings;
 
-// use crate::bindings::exports::sketch::embedded::hts::Guest;
 use crate::bindings::exports::sketch::implementation::hts::Guest;
 use lol_alloc::{AssumeSingleThreaded, FreeListAllocator};
 use wasi_embedded_hal::add_i2c_hal;
