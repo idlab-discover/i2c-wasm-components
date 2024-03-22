@@ -1,9 +1,9 @@
 [workspace]
-members = ["lcd", "hat", "temp"]
+members = ["lcd", "hat"]
 resolver = "2"
 
 [workspace.dependencies]
-lol_alloc = "0.4.0"
-bitflags = "2.4.2"
+lol_alloc = "0.4.1"
+bitflags = "2.5.0"
 wit-bindgen-rt = { version = "0.22.0", default-features = false }
 compiler_builtins = { version = "0.1.108", features = ["mem"] }

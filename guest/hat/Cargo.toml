@@ -19,7 +19,7 @@ wasi-embedded-hal = { version = "0.2.0", default-features = false, features = [
 ] }
 
 [package.metadata.component]
-package = "implementation:hat"
+package = "sketch:implementation"
 # We don't need an adapter, but cargo-component doesn't yet have an option to
 # disable the adapter. As a workaround, use an empty adapter.
 adapter = "../empty.wasm"
@@ -31,7 +31,6 @@ world = "sensor"
 [package.metadata.component.target.dependencies]
 "wasi:i2c" = { path = "../../wit/deps/i2c" }
 
-# package = { id = "wasi:i2c" }
 [package.metadata.component.bindings]
 # Enable this to put `std` usage behind a feature, so that we can use `no_std`.
 std_feature = true

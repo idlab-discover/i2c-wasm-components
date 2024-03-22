@@ -15,47 +15,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf4b9d6a944f767f8e5e0db018570623c85f3d925ac718db4e06d0187adb21c1"
 
 [[package]]
+name = "command"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "compiler_builtins",
+ "lol_alloc",
+ "wit-bindgen-rt",
+]
+
+[[package]]
 name = "compiler_builtins"
 version = "0.1.108"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d68bc55329711cd719c2687bb147bc06211b0521f97ef398280108ccb23227e9"
-
-[[package]]
-name = "embedded-hal"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "361a90feb7004eca4019fb28352a9465666b24f840f5c3cddf0ff13920590b89"
-
-[[package]]
-name = "hat"
-version = "0.0.0"
-dependencies = [
- "bitflags",
- "compiler_builtins",
- "embedded-hal",
- "hts221",
- "lol_alloc",
- "wasi-embedded-hal",
- "wit-bindgen-rt",
-]
-
-[[package]]
-name = "hts221"
-version = "1.0.0"
-source = "git+https://github.com/Zelzahn/hts221#86e0151ba2fa36a61d7a7dac1becc088c8b9b6e1"
-dependencies = [
- "embedded-hal",
-]
-
-[[package]]
-name = "lcd"
-version = "0.0.0"
-dependencies = [
- "bitflags",
- "compiler_builtins",
- "lol_alloc",
- "wit-bindgen-rt",
-]
 
 [[package]]
 name = "lock_api"
@@ -89,18 +62,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
 dependencies = [
  "lock_api",
-]
-
-[[package]]
-name = "wasi-embedded-hal"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d6f50a2f8cf61975dc996d084d3a08a3dcbb79a92f3e2010aa7b026853f8d10"
-dependencies = [
- "bitflags",
- "embedded-hal",
- "lol_alloc",
- "wit-bindgen-rt",
 ]
 
 [[package]]
