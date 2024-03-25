@@ -4,6 +4,10 @@
 *.wasm
 !empty.wasm
 
+# Do not track the bindings
+# See: https://github.com/bytecodealliance/cargo-component/issues/255
+**/bindings.rs
+
 # Added by cargo
 
 /target

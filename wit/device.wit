@@ -1,35 +1,35 @@
 package sketch:implementation;
 
 interface hts {
-    use wasi:i2c/i2c@0.1.0.{i2c, error-code};
+    use wasi:i2c/i2c@0.2.0-draft.{i2c, error-code};
 
     get-temperature: func(connection: i2c) -> result<string, error-code>;
     get-humidity: func(connection: i2c) -> result<string, error-code>;
 }
 
 interface lcd {
-    use wasi:i2c/i2c@0.1.0.{i2c};
-    use wasi:i2c/delay@0.1.0.{delay};
+    use wasi:i2c/i2c@0.2.0-draft.{i2c};
+    use wasi:i2c/delay@0.2.0-draft.{delay};
 
     write: func(connection: i2c, delay: delay, message: string);
 }
 
 world sensor {
-    import wasi:i2c/i2c@0.1.0;
+    import wasi:i2c/i2c@0.2.0-draft;
 
     export hts;
 }
 
 world screen {
     // As we need both i2c and delay we just include the imports
-    include wasi:i2c/imports@0.1.0;
+    include wasi:i2c/imports@0.2.0-draft;
 
     export lcd;
 }
 
 /// This is a wrapper around devices to give a shared interface to the host
 world app {
-    include wasi:i2c/imports@0.1.0;
+    include wasi:i2c/imports@0.2.0-draft;
 
     include sensor;
     // include screen;
