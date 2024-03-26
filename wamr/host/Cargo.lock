@@ -28,9 +28,9 @@ dependencies = [
 
 [[package]]
 name = "autocfg"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
+checksum = "f1fdabc7756949593fe60f30ec81974b613357de856987752631dea1e3394c80"
 
 [[package]]
 name = "bindgen"
@@ -460,7 +460,7 @@ checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 [[package]]
 name = "wamr-rust-sdk"
 version = "0.1.0"
-source = "git+https://github.com/bytecodealliance/wamr-rust-sdk?branch=main#9d6f2bbeda10876d3bf4cf3327fb57641470ec23"
+source = "git+https://github.com/bytecodealliance/wamr-rust-sdk?branch=main#bb07b7c51d14833c6960fb00c4abc9608b0d7d24"
 dependencies = [
  "wamr-sys",
 ]
@@ -468,7 +468,7 @@ dependencies = [
 [[package]]
 name = "wamr-sys"
 version = "0.1.0"
-source = "git+https://github.com/bytecodealliance/wamr-rust-sdk?branch=main#9d6f2bbeda10876d3bf4cf3327fb57641470ec23"
+source = "git+https://github.com/bytecodealliance/wamr-rust-sdk?branch=main#bb07b7c51d14833c6960fb00c4abc9608b0d7d24"
 dependencies = [
  "bindgen",
  "cc",

@@ -1,14 +1,9 @@
 [build]
 rustflags = [
-    "--target=wasm32-wasi",
     "-C",
     "link-arg=--initial-memory=65536",
     "-C",
     "link-arg=-zstack-size=4096",
-    # "-C",
-    # "link-self-contained=no",
-    # "-C",
-    # "link-arg=--export=mul7",
     "-C",
     "link-arg=--no-entry",
     "-C",

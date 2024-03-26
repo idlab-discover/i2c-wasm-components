@@ -1,32 +1,47 @@
+#![no_std]
+#![no_main]
+
+use lol_alloc::{AssumeSingleThreaded, FreeListAllocator};
+
 fn to_data(i: usize) -> u8 {
     [0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F][(i - 48) % 10]
 }
 
+#[link(wasm_import_module = "host")]
 extern "C" {
-    fn host_i2c_write(slave_address: u16, data: *const u8, data_len: usize);
+    fn host_i2c_write(slave_address: u16, data: u8);
 }
 
-fn i2c_write(slave_address: u16, data: &[u8]) {
-    unsafe { host_i2c_write(slave_address, data.as_ptr(), data.len()) }
+fn i2c_write(slave_address: u16, data: u8) {
+    // println!("WASM i2c_write: {:?} {:?}", slave_address, data);
+    unsafe { host_i2c_write(slave_address, data) }
 }
 
 /// Set the display on and the brightness to max
-#[no_mangle]
+#[export_name = "setup"]
 pub fn setup() {
     // Set display on
-    i2c_write(0x24, &[0x81]);
+    i2c_write(0x24, 0x81);
 
     // Set brightness to max
-    i2c_write(0x24, &[(0 << 4) | 0x01]);
+    i2c_write(0x24, (0 << 4) | 0x01);
 }
 
-#[no_mangle]
-pub fn write(message: &str) {
-    let str_bytes = message.as_bytes();
+#[export_name = "write"]
+pub fn write(d0: i32, d1: i32, d2: i32, d3: i32) {
+    for (i, &number) in [d0, d1, d2, d3].iter().enumerate() {
+        let dig = to_data(number as usize);
 
-    for (i, &number) in str_bytes.iter().enumerate() {
-        let dig = to_data(number.into());
-
-        i2c_write(0x34 + (i as u16), &[dig]);
+        i2c_write(0x34 + (i as u16), dig);
     }
+}
+
+/// no_std required stuff
+#[global_allocator]
+static GLOBAL_ALLOCATOR: AssumeSingleThreaded<FreeListAllocator> =
+    unsafe { AssumeSingleThreaded::new(FreeListAllocator::new()) };
+
+#[panic_handler]
+fn panic(_panic: &core::panic::PanicInfo<'_>) -> ! {
+    loop {}
 }
