@@ -1,0 +1,12 @@
+[package]
+name = "host"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = "0.4.35"
+once_cell = "1.19.0"
+rppal = { version = "0.17.1", features = ["hal"] }
+wamr-rust-sdk = { git = "https://github.com/bytecodealliance/wamr-rust-sdk", branch = "main" }

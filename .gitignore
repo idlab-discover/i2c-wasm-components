@@ -1,7 +1,9 @@
 **/target
 
+**/.vscode
+
 # Ignore all wasm files, except the empty ones
-*.wasm
+**/*.wasm
 !empty.wasm
 
 # Do not track the bindings

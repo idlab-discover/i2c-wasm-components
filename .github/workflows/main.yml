@@ -11,8 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: ensure `./wit/deps` are in sync
+    - name: ensure `./wasmtime/wit/deps` are in sync
       run: |
+        cd wasmtime
         curl -Lo 'wit-deps' https://github.com/bytecodealliance/wit-deps/releases/download/v0.3.2/wit-deps-x86_64-unknown-linux-musl
         chmod +x ./wit-deps
         ./wit-deps lock --check
