@@ -10,3 +10,10 @@ hts221 = { git = "https://github.com/Zelzahn/hts221" }
 anyhow = "1.0.80"
 embedded-hal = "1.0.0"
 linux-embedded-hal = { version = "0.4.0", features = ["i2cdev"] }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "sensor_read"
+harness = false
