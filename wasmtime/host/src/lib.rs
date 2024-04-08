@@ -16,7 +16,6 @@ pub fn execute() -> Result<String, anyhow::Error> {
 
     let wasi = WasiCtxBuilder::new()
         .inherit_stdout()
-        .inherit_stdio()
         .build();
 
     let component = Component::from_file(&engine, "hat.wasm")?;
