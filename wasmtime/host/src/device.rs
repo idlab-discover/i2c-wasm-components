@@ -1,29 +1,27 @@
-bindgen!({
-    path: "../wit",
-    world: "app",
-    with: {
-        "wasi:i2c/delay/delay": Delay,
-        "wasi:i2c/i2c/i2c": I2c,
-    }
-});
-
 use linux_embedded_hal::I2cdev;
-use wasi::i2c::*;
 use wasmtime::{component::bindgen, Result};
-use wasmtime::{
-    component::{Component, Linker},
-    Engine, Store,
-};
 use wasmtime_wasi::WasiView;
 use wasmtime_wasi::{ResourceTable, WasiCtx};
 
-struct HostComponent {
-    table: ResourceTable,
+use crate::device::wasi::i2c::{delay, i2c};
+use crate::device;
+
+bindgen!({
+    path: "../wit/deps/i2c",
+    world: "wasi:i2c/imports",
+    with: {
+        "wasi:i2c/delay/delay": device::Delay,
+        "wasi:i2c/i2c/i2c": device::I2c,
+    }
+});
+
+pub struct HostComponent {
+    pub(crate) table: ResourceTable,
 }
 
 pub struct MyState {
-    host: HostComponent,
-    wasi: WasiCtx,
+    pub(crate) host: HostComponent,
+    pub(crate) wasi: WasiCtx,
 }
 
 // Needed for wasmtime_wasi::preview2
@@ -37,7 +35,7 @@ impl WasiView for MyState {
 }
 
 pub struct Delay;
-pub struct I2c(I2cdev);
+pub struct I2c(pub I2cdev);
 
 impl i2c::Host for HostComponent {}
 impl i2c::HostI2c for HostComponent {
@@ -102,6 +100,7 @@ impl i2c::HostI2c for HostComponent {
 }
 
 impl delay::Host for HostComponent {}
+// impl<T: WasiView> delay::HostDelay for T {
 impl delay::HostDelay for HostComponent {
     fn delay_ns(
         &mut self,
@@ -117,34 +116,4 @@ impl delay::HostDelay for HostComponent {
         self.table.delete(self_)?;
         Ok(())
     }
-}
-
-pub fn run(
-    mut linker: Linker<MyState>,
-    engine: Engine,
-    component: Component,
-    wasi: WasiCtx,
-) -> Result<String, anyhow::Error> {
-    // Binding host
-    wasi::i2c::i2c::add_to_linker(&mut linker, |state: &mut MyState| &mut state.host)?;
-
-    let mut state = MyState {
-        host: HostComponent {
-            table: ResourceTable::new(),
-        },
-        wasi,
-    };
-
-    let i2cdev = I2cdev::new(format!("/dev/i2c-{}", 1))?;
-
-    let connection = state.host.table.push(I2c(i2cdev))?;
-    let delay = state.host.table.push(Delay)?;
-
-    let mut store = Store::new(&engine, state);
-
-    let (bindings, _) = App::instantiate(&mut store, &component, &linker)?;
-
-    Ok(bindings
-        .interface0
-        .call_get_temperature(&mut store, connection)??)
 }

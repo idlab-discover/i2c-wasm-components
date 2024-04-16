@@ -1,4 +1,5 @@
 mod device;
+mod hat;
 
 use wasmtime::{
     component::{Component, Linker},
@@ -14,11 +15,11 @@ pub fn execute() -> Result<String, anyhow::Error> {
     // Bind wasi commmand world
     wasmtime_wasi::command::sync::add_to_linker(&mut linker)?;
 
-    let wasi = WasiCtxBuilder::new()
-        .inherit_stdout()
-        .build();
+    let wasi = WasiCtxBuilder::new().inherit_stdout().build();
 
     let component = Component::from_file(&engine, "hat.wasm")?;
 
-    Ok(device::run(linker, engine, component, wasi)?)
+    let guest = hat::run(linker, engine, component, wasi)?;
+
+    Ok(guest)
 }

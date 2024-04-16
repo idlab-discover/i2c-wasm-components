@@ -27,10 +27,3 @@ world screen {
     export lcd;
 }
 
-/// This is a wrapper around devices to give a shared interface to the host
-world app {
-    include wasi:i2c/imports@0.2.0-draft;
-
-    include sensor;
-    // include screen;
-}
