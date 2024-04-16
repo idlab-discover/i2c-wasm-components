@@ -5,7 +5,7 @@
 To make building easier [just](https://just.systems/man/en/) is used, see `Justfile`. 
 
 ## Host
-To compile for Raspberry Pi make sure to have the corresponding target and linker installed.
+To compile for Raspberry Pi, make sure to have the corresponding target and linker installed.
 
 ```bash
 rustup target add aarch64-unknown-linux-gnu
@@ -15,9 +15,8 @@ yay -S aarch64-linux-gnu-gcc
 
 ### Switching guest
 
-1. Change the `included` guest in the wit.
-2. Change the method invocations in the `run` function inside `device.rs`.
-3. Change the used `wasm` file inside `main`.
+1. Change the method invocations in the `run` function inside `device.rs`.
+2. Change the used `wasm` file inside `main`.
 
 ## Guest
 ### Screen
@@ -41,10 +40,3 @@ cargo +nightly component build
 ## WIT
 See [wasi-i2c](https://github.com/WebAssembly/wasi-i2c) for the source of the wit files.
 
-### `app` world and how I tried to make a generic interface for the host
-
-As I currently have multiple guest components, I would like to use whichever in the host via a CLI. Problem is that the [bindgen](https://docs.rs/wasmtime/latest/wasmtime/component/macro.bindgen.html) macro is quite restrictive, e.g. it's not possible to have one for each world or to define a wrapper around the guest components and then call that one (see [this commit](https://github.com/Zelzahn/i2c-wasm-components/pull/10/commits/5ea3c0f43e3e46022cf8d05a31e439431b359e2d)).
-
-So I came to the `app` world, it includes one of the guest components. The benefit of this wrapper is that the world itself does not change, thus limiting the number of changes required to switch the linked guest in the host.
-
-Another solution would be to define a host for each guest component, see [this commit](https://github.com/Zelzahn/i2c-wasm-components/commit/7b9648b57c24aad50015215e89f6b6db9342f19e), but this leads to loads of code duplication.
