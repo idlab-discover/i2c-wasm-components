@@ -57,11 +57,11 @@ impl device::Device for DeviceState {
     }
 
     fn run(&mut self) -> Result<String, anyhow::Error> {
-        let connection = Resource::new_borrow(self.connection);
+        let connection = Resource::new_own(self.connection);
 
         Ok(self
             .bindings
-            .interface0
+            .sketch_implementation_hts()
             .call_get_temperature(&mut self.store, connection)??)
     }
 }

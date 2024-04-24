@@ -31,6 +31,8 @@ pub fn execute(guest: Guest) -> Result<String, anyhow::Error> {
         Guest::SegmentLEDDisplay => Component::from_file(&engine, "led.wasm")?
     };
     
-    let mut device_state = sensor::DeviceState::new(linker, engine, component, wasi)?;
-    device_state.run()
+    match guest {
+        Guest::Sensor => sensor::DeviceState::new(linker, engine, component, wasi)?.run(),
+        Guest::LCDDisplay | Guest::SegmentLEDDisplay => display::DeviceState::new(linker, engine, component, wasi)?.run(),
+    }
 }
