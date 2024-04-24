@@ -1,13 +1,21 @@
 mod device;
-mod hat;
+mod sensor;
+mod display;
 
+use device::Device;
 use wasmtime::{
     component::{Component, Linker},
     Config, Engine, Result,
 };
 use wasmtime_wasi::WasiCtxBuilder;
 
-pub fn execute() -> Result<String, anyhow::Error> {
+pub enum Guest {
+   Sensor,
+   LCDDisplay,
+   SegmentLEDDisplay
+}
+
+pub fn execute(guest: Guest) -> Result<String, anyhow::Error> {
     let engine = Engine::new(Config::new().wasm_component_model(true))?;
 
     let mut linker = Linker::new(&engine);
@@ -17,9 +25,12 @@ pub fn execute() -> Result<String, anyhow::Error> {
 
     let wasi = WasiCtxBuilder::new().inherit_stdout().build();
 
-    let component = Component::from_file(&engine, "hat.wasm")?;
-
-    let guest = hat::run(linker, engine, component, wasi)?;
-
-    Ok(guest)
+    let component = match guest {
+        Guest::Sensor => Component::from_file(&engine, "hat.wasm")?,
+        Guest::LCDDisplay => Component::from_file(&engine, "lcd.wasm")?,
+        Guest::SegmentLEDDisplay => Component::from_file(&engine, "led.wasm")?
+    };
+    
+    let mut device_state = sensor::DeviceState::new(linker, engine, component, wasi)?;
+    device_state.run()
 }

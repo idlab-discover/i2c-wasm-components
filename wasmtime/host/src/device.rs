@@ -1,10 +1,14 @@
 use linux_embedded_hal::I2cdev;
 use wasmtime::{component::bindgen, Result};
+use wasmtime::{
+    component::{Component, Linker},
+    Engine,
+};
 use wasmtime_wasi::WasiView;
 use wasmtime_wasi::{ResourceTable, WasiCtx};
 
-use crate::device::wasi::i2c::{delay, i2c};
 use crate::device;
+use crate::device::wasi::i2c::{delay, i2c};
 
 bindgen!({
     path: "../wit/deps/i2c",
@@ -15,17 +19,29 @@ bindgen!({
     }
 });
 
+pub trait Device {
+    fn new(
+        linker: Linker<HostState>,
+        engine: Engine,
+        component: Component,
+        wasi: WasiCtx,
+    ) -> Result<Self, anyhow::Error>
+    where
+        Self: Sized;
+    fn run(&mut self) -> Result<String, anyhow::Error>;
+}
+
 pub struct HostComponent {
     pub(crate) table: ResourceTable,
 }
 
-pub struct MyState {
+pub struct HostState {
     pub(crate) host: HostComponent,
     pub(crate) wasi: WasiCtx,
 }
 
 // Needed for wasmtime_wasi::preview2
-impl WasiView for MyState {
+impl WasiView for HostState {
     fn table(&mut self) -> &mut ResourceTable {
         &mut self.host.table
     }
