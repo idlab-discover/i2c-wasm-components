@@ -1,6 +1,6 @@
 use crate::device;
-use crate::device::wasi::i2c::i2c;
 use crate::device::wasi::i2c::delay;
+use crate::device::wasi::i2c::i2c;
 use crate::device::{HostComponent, HostState, I2c};
 
 use linux_embedded_hal::I2cdev;
@@ -51,7 +51,7 @@ impl device::Device for DeviceState {
 
         let connection = state.host.table.push(I2c(i2cdev))?;
         let delay = state.host.table.push(device::Delay)?;
-        
+
         let mut store = Store::new(&engine, state);
         let (bindings, _) = Screen::instantiate(&mut store, &component, &linker)?;
 
@@ -69,10 +69,12 @@ impl device::Device for DeviceState {
 
         let message = "1234";
 
-        self
-            .bindings
-            .sketch_implementation_lcd()
-            .call_write(&mut self.store, connection, delay, message)?;
+        self.bindings.sketch_implementation_lcd().call_write(
+            &mut self.store,
+            connection,
+            delay,
+            message,
+        )?;
 
         Ok(message.to_string())
     }

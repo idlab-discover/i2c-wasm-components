@@ -1,8 +1,9 @@
 mod device;
-mod sensor;
 mod display;
+mod sensor;
 
 use device::Device;
+use std::fs;
 use wasmtime::{
     component::{Component, Linker},
     Config, Engine, Result,
@@ -10,12 +11,12 @@ use wasmtime::{
 use wasmtime_wasi::WasiCtxBuilder;
 
 pub enum Guest {
-   Sensor,
-   LCDDisplay,
-   SegmentLEDDisplay
+    Sensor,
+    LCDDisplay,
+    SegmentLEDDisplay,
 }
 
-pub fn execute(guest: Guest) -> Result<String, anyhow::Error> {
+pub fn execute(guest: Guest, option: Option<&str>) -> Result<String, anyhow::Error> {
     let engine = Engine::new(Config::new().wasm_component_model(true))?;
 
     let mut linker = Linker::new(&engine);
@@ -25,14 +26,31 @@ pub fn execute(guest: Guest) -> Result<String, anyhow::Error> {
 
     let wasi = WasiCtxBuilder::new().inherit_stdout().build();
 
-    let component = match guest {
-        Guest::Sensor => Component::from_file(&engine, "hat.wasm")?,
-        Guest::LCDDisplay => Component::from_file(&engine, "lcd.wasm")?,
-        Guest::SegmentLEDDisplay => Component::from_file(&engine, "led.wasm")?
-    };
-    
+    let component = get_component(&engine, &guest, option)?;
+
     match guest {
         Guest::Sensor => sensor::DeviceState::new(linker, engine, component, wasi)?.run(),
-        Guest::LCDDisplay | Guest::SegmentLEDDisplay => display::DeviceState::new(linker, engine, component, wasi)?.run(),
+        Guest::LCDDisplay | Guest::SegmentLEDDisplay => {
+            display::DeviceState::new(linker, engine, component, wasi)?.run()
+        }
+    }
+}
+
+fn get_component(engine: &Engine, guest: &Guest, option: Option<&str>) -> Result<Component> {
+    if matches!(option, Some("serialize")) || option.is_none() {
+        let component = match guest {
+            Guest::Sensor => Component::from_file(engine, "hat.wasm")?,
+            Guest::LCDDisplay => Component::from_file(engine, "lcd.wasm")?,
+            Guest::SegmentLEDDisplay => Component::from_file(engine, "led.wasm")?,
+        };
+
+        if matches!(option, Some("serialize")) {
+            let data = component.serialize()?;
+            fs::write("./component.serialized", data)?;
+        }
+
+        Ok(component)
+    } else {
+        unsafe { Component::deserialize_file(engine, "./component.serialized") }
     }
 }

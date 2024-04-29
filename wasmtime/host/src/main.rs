@@ -18,7 +18,13 @@ fn main() -> Result<(), anyhow::Error> {
         _ => Err(anyhow!("Unknown guest!")),
     }?;
 
-    let res = host::execute(guest)?;
+    let option = if args.len() > 2 {
+        Some(args[2].as_str())
+    } else {
+        None
+    };
+
+    let res = host::execute(guest, option)?;
     println!("{:?}", res);
 
     Ok(())
