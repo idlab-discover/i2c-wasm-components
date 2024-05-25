@@ -10,3 +10,17 @@ embedded-hal = "1.0.0"
 # PR with embedded-hal v1 support
 hd44780-driver = { git = "https://github.com/ichdenkenicht/hd44780-driver.git" }
 rppal = { version = "0.17.0", features = ["hal"] }
+dhat = "0.3.3"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "lcd_write"
+harness = false
+
+[profile.release]
+debug = 1
+
+[features]
+dhat-heap = []

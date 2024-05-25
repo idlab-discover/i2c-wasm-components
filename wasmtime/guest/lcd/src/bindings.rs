@@ -154,7 +154,7 @@ pub mod wasi {
 
                     #[cfg(target_arch = "wasm32")]
                     {
-                        #[link(wasm_import_module = "wasi:i2c/i2c@0.1.0")]
+                        #[link(wasm_import_module = "wasi:i2c/i2c@0.2.0-draft")]
                         extern "C" {
                             #[link_name = "[resource-drop]i2c"]
                             fn drop(_: u32);
@@ -213,7 +213,7 @@ pub mod wasi {
                         }
                         let ptr2 = ret_area.0.as_mut_ptr().cast::<u8>();
                         #[cfg(target_arch = "wasm32")]
-                        #[link(wasm_import_module = "wasi:i2c/i2c@0.1.0")]
+                        #[link(wasm_import_module = "wasi:i2c/i2c@0.2.0-draft")]
                         extern "C" {
                             #[link_name = "[method]i2c.transaction"]
                             fn wit_import(_: i32, _: i32, _: *mut u8, _: usize, _: *mut u8);
@@ -299,7 +299,7 @@ pub mod wasi {
                         let mut ret_area = RetArea([::core::mem::MaybeUninit::uninit(); 12]);
                         let ptr0 = ret_area.0.as_mut_ptr().cast::<u8>();
                         #[cfg(target_arch = "wasm32")]
-                        #[link(wasm_import_module = "wasi:i2c/i2c@0.1.0")]
+                        #[link(wasm_import_module = "wasi:i2c/i2c@0.2.0-draft")]
                         extern "C" {
                             #[link_name = "[method]i2c.read"]
                             fn wit_import(_: i32, _: i32, _: i64, _: *mut u8);
@@ -370,7 +370,7 @@ pub mod wasi {
                         let len0 = vec0.len();
                         let ptr1 = ret_area.0.as_mut_ptr().cast::<u8>();
                         #[cfg(target_arch = "wasm32")]
-                        #[link(wasm_import_module = "wasi:i2c/i2c@0.1.0")]
+                        #[link(wasm_import_module = "wasi:i2c/i2c@0.2.0-draft")]
                         extern "C" {
                             #[link_name = "[method]i2c.write"]
                             fn wit_import(_: i32, _: i32, _: *mut u8, _: usize, _: *mut u8);
@@ -442,7 +442,7 @@ pub mod wasi {
                         let len0 = vec0.len();
                         let ptr1 = ret_area.0.as_mut_ptr().cast::<u8>();
                         #[cfg(target_arch = "wasm32")]
-                        #[link(wasm_import_module = "wasi:i2c/i2c@0.1.0")]
+                        #[link(wasm_import_module = "wasi:i2c/i2c@0.2.0-draft")]
                         extern "C" {
                             #[link_name = "[method]i2c.write-read"]
                             fn wit_import(_: i32, _: i32, _: *mut u8, _: usize, _: i64, _: *mut u8);
@@ -547,7 +547,7 @@ pub mod wasi {
 
                     #[cfg(target_arch = "wasm32")]
                     {
-                        #[link(wasm_import_module = "wasi:i2c/delay@0.1.0")]
+                        #[link(wasm_import_module = "wasi:i2c/delay@0.2.0-draft")]
                         extern "C" {
                             #[link_name = "[resource-drop]delay"]
                             fn drop(_: u32);
@@ -566,7 +566,7 @@ pub mod wasi {
                 pub fn delay_ns(&self, ns: u32) {
                     unsafe {
                         #[cfg(target_arch = "wasm32")]
-                        #[link(wasm_import_module = "wasi:i2c/delay@0.1.0")]
+                        #[link(wasm_import_module = "wasi:i2c/delay@0.2.0-draft")]
                         extern "C" {
                             #[link_name = "[method]delay.delay-ns"]
                             fn wit_import(_: i32, _: i32);
@@ -885,8 +885,8 @@ pub(crate) use __export_screen_impl as export;
 #[cfg(target_arch = "wasm32")]
 #[link_section = "component-type:wit-bindgen:0.21.0:screen:encoded world"]
 #[doc(hidden)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 839] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xca\x05\x01A\x02\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 851] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xd6\x05\x01A\x02\x01\
 A\x08\x01B\x18\x01{\x04\0\x07address\x03\0\0\x01m\x03\x07address\x04data\x07unkn\
 own\x04\0\x15no-acknowledge-source\x03\0\x02\x01q\x05\x03bus\0\0\x10arbitration-\
 loss\0\0\x0eno-acknowledge\x01\x03\0\x07overrun\0\0\x05other\0\0\x04\0\x0aerror-\
@@ -897,15 +897,15 @@ c.transaction\x01\x0e\x01j\x01\x06\x01\x05\x01@\x03\x04self\x0a\x07address\x01\x
 lenw\0\x0f\x04\0\x10[method]i2c.read\x01\x10\x01j\0\x01\x05\x01@\x03\x04self\x0a\
 \x07address\x01\x04data\x06\0\x11\x04\0\x11[method]i2c.write\x01\x12\x01@\x04\x04\
 self\x0a\x07address\x01\x05write\x06\x08read-lenw\0\x0f\x04\0\x16[method]i2c.wri\
-te-read\x01\x13\x03\x01\x12wasi:i2c/i2c@0.1.0\x05\0\x01B\x04\x04\0\x05delay\x03\x01\
-\x01h\0\x01@\x02\x04self\x01\x02nsy\x01\0\x04\0\x16[method]delay.delay-ns\x01\x02\
-\x03\x01\x14wasi:i2c/delay@0.1.0\x05\x01\x02\x03\0\0\x03i2c\x02\x03\0\x01\x05del\
-ay\x01B\x08\x02\x03\x02\x01\x02\x04\0\x03i2c\x03\0\0\x02\x03\x02\x01\x03\x04\0\x05\
-delay\x03\0\x02\x01i\x01\x01i\x03\x01@\x03\x0aconnection\x04\x05delay\x05\x07mes\
-sages\x01\0\x04\0\x05write\x01\x06\x04\x01\x19sketch:implementation/lcd\x05\x04\x04\
-\x01\x1csketch:implementation/screen\x04\0\x0b\x0c\x01\0\x06screen\x03\0\0\0G\x09\
-producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.201.0\x10wit-bindgen-rus\
-t\x060.21.0";
+te-read\x01\x13\x03\x01\x18wasi:i2c/i2c@0.2.0-draft\x05\0\x01B\x04\x04\0\x05dela\
+y\x03\x01\x01h\0\x01@\x02\x04self\x01\x02nsy\x01\0\x04\0\x16[method]delay.delay-\
+ns\x01\x02\x03\x01\x1awasi:i2c/delay@0.2.0-draft\x05\x01\x02\x03\0\0\x03i2c\x02\x03\
+\0\x01\x05delay\x01B\x08\x02\x03\x02\x01\x02\x04\0\x03i2c\x03\0\0\x02\x03\x02\x01\
+\x03\x04\0\x05delay\x03\0\x02\x01i\x01\x01i\x03\x01@\x03\x0aconnection\x04\x05de\
+lay\x05\x07messages\x01\0\x04\0\x05write\x01\x06\x04\x01\x19sketch:implementatio\
+n/lcd\x05\x04\x04\x01\x1csketch:implementation/screen\x04\0\x0b\x0c\x01\0\x06scr\
+een\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.201.0\x10\
+wit-bindgen-rust\x060.21.0";
 
 #[inline(never)]
 #[doc(hidden)]

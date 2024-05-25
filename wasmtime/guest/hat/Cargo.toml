@@ -26,7 +26,7 @@ adapter = "../empty.wasm"
 
 [package.metadata.component.target]
 path = "../../wit"
-world = "app"
+world = "sensor"
 
 [package.metadata.component.target.dependencies]
 "wasi:i2c" = { path = "../../wit/deps/i2c" }

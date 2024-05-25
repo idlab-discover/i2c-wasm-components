@@ -1,33 +1,12 @@
-use hts221;
-use linux_embedded_hal::I2cdev;
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
 
 fn main() -> Result<(), anyhow::Error> {
-    let mut i2c = I2cdev::new("/dev/i2c-1")?;
-
-    let mut hts221 = hts221::Builder::new()
-        .with_avg_t(hts221::AvgT::Avg256)
-        .with_avg_h(hts221::AvgH::Avg512)
-        .build(&mut i2c)?;
-
-    loop {
-        match hts221.status(&mut i2c) {
-            Ok(status) => {
-                if status.humidity_data_available() && status.temperature_data_available() {
-                    break;
-                }
-            }
-            Err(_) => println!("Could not get status"),
-        }
-    }
-
-    let humidity_x2 = hts221.humidity_x2(&mut i2c)?;
-    let temperature_x8 = hts221.temperature_x8(&mut i2c)?;
-    println!("rH = {}.{}%", humidity_x2 >> 1, 5 * (humidity_x2 & 0b1));
-    println!(
-        "Temp = {}.{} deg C",
-        temperature_x8 >> 3,
-        125 * (temperature_x8 & 0b111)
-    );
-
+    #[cfg(feature = "dhat-heap")]
+    let _profiler = dhat::Profiler::new_heap();
+    // println!("rH = {}.{}%", humidity_x2 >> 1, 5 * (humidity_x2 & 0b1));
+    let res = hat::execute()?;
+    println!("{:?}", res);
     Ok(())
 }
