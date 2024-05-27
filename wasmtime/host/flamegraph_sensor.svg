@@ -1,0 +1,491 @@
+<?xml version="1.0" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg version="1.1" width="1200" height="1094" onload="init(evt)" viewBox="0 0 1200 1094" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:fg="http://github.com/jonhoo/inferno"><!--Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples.--><!--NOTES: --><defs><linearGradient id="background" y1="0" y2="1" x1="0" x2="0"><stop stop-color="#eeeeee" offset="5%"/><stop stop-color="#eeeeb0" offset="95%"/></linearGradient></defs><style type="text/css">
+text { font-family:monospace; font-size:12px }
+#title { text-anchor:middle; font-size:17px; }
+#matched { text-anchor:end; }
+#search { text-anchor:end; opacity:0.1; cursor:pointer; }
+#search:hover, #search.show { opacity:1; }
+#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+#unzoom { cursor:pointer; }
+#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+.hide { display:none; }
+.parent { opacity:0.5; }
+</style><script type="text/ecmascript"><![CDATA[
+        var nametype = 'Function:';
+        var fontsize = 12;
+        var fontwidth = 0.59;
+        var xpad = 10;
+        var inverted = false;
+        var searchcolor = 'rgb(230,0,230)';
+        var fluiddrawing = true;
+        var truncate_text_right = false;
+    ]]><![CDATA["use strict";
+var details, searchbtn, unzoombtn, matchedtxt, svg, searching, frames, known_font_width;
+function init(evt) {
+    details = document.getElementById("details").firstChild;
+    searchbtn = document.getElementById("search");
+    unzoombtn = document.getElementById("unzoom");
+    matchedtxt = document.getElementById("matched");
+    svg = document.getElementsByTagName("svg")[0];
+    frames = document.getElementById("frames");
+    known_font_width = get_monospace_width(frames);
+    total_samples = parseInt(frames.attributes.total_samples.value);
+    searching = 0;
+
+    // Use GET parameters to restore a flamegraph's state.
+    var restore_state = function() {
+        var params = get_params();
+        if (params.x && params.y)
+            zoom(find_group(document.querySelector('[*|x="' + params.x + '"][y="' + params.y + '"]')));
+        if (params.s)
+            search(params.s);
+    };
+
+    if (fluiddrawing) {
+        // Make width dynamic so the SVG fits its parent's width.
+        svg.removeAttribute("width");
+        // Edge requires us to have a viewBox that gets updated with size changes.
+        var isEdge = /Edge\/\d./i.test(navigator.userAgent);
+        if (!isEdge) {
+            svg.removeAttribute("viewBox");
+        }
+        var update_for_width_change = function() {
+            if (isEdge) {
+                svg.attributes.viewBox.value = "0 0 " + svg.width.baseVal.value + " " + svg.height.baseVal.value;
+            }
+
+            // Keep consistent padding on left and right of frames container.
+            frames.attributes.width.value = svg.width.baseVal.value - xpad * 2;
+
+            // Text truncation needs to be adjusted for the current width.
+            update_text_for_elements(frames.children);
+
+            // Keep search elements at a fixed distance from right edge.
+            var svgWidth = svg.width.baseVal.value;
+            searchbtn.attributes.x.value = svgWidth - xpad;
+            matchedtxt.attributes.x.value = svgWidth - xpad;
+        };
+        window.addEventListener('resize', function() {
+            update_for_width_change();
+        });
+        // This needs to be done asynchronously for Safari to work.
+        setTimeout(function() {
+            unzoom();
+            update_for_width_change();
+            restore_state();
+        }, 0);
+    } else {
+        restore_state();
+    }
+}
+// event listeners
+window.addEventListener("click", function(e) {
+    var target = find_group(e.target);
+    if (target) {
+        if (target.nodeName == "a") {
+            if (e.ctrlKey === false) return;
+            e.preventDefault();
+        }
+        if (target.classList.contains("parent")) unzoom();
+        zoom(target);
+
+        // set parameters for zoom state
+        var el = target.querySelector("rect");
+        if (el && el.attributes && el.attributes.y && el.attributes["fg:x"]) {
+            var params = get_params()
+            params.x = el.attributes["fg:x"].value;
+            params.y = el.attributes.y.value;
+            history.replaceState(null, null, parse_params(params));
+        }
+    }
+    else if (e.target.id == "unzoom") {
+        unzoom();
+
+        // remove zoom state
+        var params = get_params();
+        if (params.x) delete params.x;
+        if (params.y) delete params.y;
+        history.replaceState(null, null, parse_params(params));
+    }
+    else if (e.target.id == "search") search_prompt();
+}, false)
+// mouse-over for info
+// show
+window.addEventListener("mouseover", function(e) {
+    var target = find_group(e.target);
+    if (target) details.nodeValue = nametype + " " + g_to_text(target);
+}, false)
+// clear
+window.addEventListener("mouseout", function(e) {
+    var target = find_group(e.target);
+    if (target) details.nodeValue = ' ';
+}, false)
+// ctrl-F for search
+window.addEventListener("keydown",function (e) {
+    if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+        e.preventDefault();
+        search_prompt();
+    }
+}, false)
+// functions
+function get_params() {
+    var params = {};
+    var paramsarr = window.location.search.substr(1).split('&');
+    for (var i = 0; i < paramsarr.length; ++i) {
+        var tmp = paramsarr[i].split("=");
+        if (!tmp[0] || !tmp[1]) continue;
+        params[tmp[0]]  = decodeURIComponent(tmp[1]);
+    }
+    return params;
+}
+function parse_params(params) {
+    var uri = "?";
+    for (var key in params) {
+        uri += key + '=' + encodeURIComponent(params[key]) + '&';
+    }
+    if (uri.slice(-1) == "&")
+        uri = uri.substring(0, uri.length - 1);
+    if (uri == '?')
+        uri = window.location.href.split('?')[0];
+    return uri;
+}
+function find_child(node, selector) {
+    var children = node.querySelectorAll(selector);
+    if (children.length) return children[0];
+    return;
+}
+function find_group(node) {
+    var parent = node.parentElement;
+    if (!parent) return;
+    if (parent.id == "frames") return node;
+    return find_group(parent);
+}
+function orig_save(e, attr, val) {
+    if (e.attributes["fg:orig_" + attr] != undefined) return;
+    if (e.attributes[attr] == undefined) return;
+    if (val == undefined) val = e.attributes[attr].value;
+    e.setAttribute("fg:orig_" + attr, val);
+}
+function orig_load(e, attr) {
+    if (e.attributes["fg:orig_"+attr] == undefined) return;
+    e.attributes[attr].value = e.attributes["fg:orig_" + attr].value;
+    e.removeAttribute("fg:orig_" + attr);
+}
+function g_to_text(e) {
+    var text = find_child(e, "title").firstChild.nodeValue;
+    return (text)
+}
+function g_to_func(e) {
+    var func = g_to_text(e);
+    // if there's any manipulation we want to do to the function
+    // name before it's searched, do it here before returning.
+    return (func);
+}
+function get_monospace_width(frames) {
+    // Given the id="frames" element, return the width of text characters if
+    // this is a monospace font, otherwise return 0.
+    text = find_child(frames.children[0], "text");
+    originalContent = text.textContent;
+    text.textContent = "!";
+    bangWidth = text.getComputedTextLength();
+    text.textContent = "W";
+    wWidth = text.getComputedTextLength();
+    text.textContent = originalContent;
+    if (bangWidth === wWidth) {
+        return bangWidth;
+    } else {
+        return 0;
+    }
+}
+function update_text_for_elements(elements) {
+    // In order to render quickly in the browser, you want to do one pass of
+    // reading attributes, and one pass of mutating attributes. See
+    // https://web.dev/avoid-large-complex-layouts-and-layout-thrashing/ for details.
+
+    // Fall back to inefficient calculation, if we're variable-width font.
+    // TODO This should be optimized somehow too.
+    if (known_font_width === 0) {
+        for (var i = 0; i < elements.length; i++) {
+            update_text(elements[i]);
+        }
+        return;
+    }
+
+    var textElemNewAttributes = [];
+    for (var i = 0; i < elements.length; i++) {
+        var e = elements[i];
+        var r = find_child(e, "rect");
+        var t = find_child(e, "text");
+        var w = parseFloat(r.attributes.width.value) * frames.attributes.width.value / 100 - 3;
+        var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+        var newX = format_percent((parseFloat(r.attributes.x.value) + (100 * 3 / frames.attributes.width.value)));
+
+        // Smaller than this size won't fit anything
+        if (w < 2 * known_font_width) {
+            textElemNewAttributes.push([newX, ""]);
+            continue;
+        }
+
+        // Fit in full text width
+        if (txt.length * known_font_width < w) {
+            textElemNewAttributes.push([newX, txt]);
+            continue;
+        }
+
+        var substringLength = Math.floor(w / known_font_width) - 2;
+        if (truncate_text_right) {
+            // Truncate the right side of the text.
+            textElemNewAttributes.push([newX, txt.substring(0, substringLength) + ".."]);
+            continue;
+        } else {
+            // Truncate the left side of the text.
+            textElemNewAttributes.push([newX, ".." + txt.substring(txt.length - substringLength, txt.length)]);
+            continue;
+        }
+    }
+
+    console.assert(textElemNewAttributes.length === elements.length, "Resize failed, please file a bug at https://github.com/jonhoo/inferno/");
+
+    // Now that we know new textContent, set it all in one go so we don't refresh a bazillion times.
+    for (var i = 0; i < elements.length; i++) {
+        var e = elements[i];
+        var values = textElemNewAttributes[i];
+        var t = find_child(e, "text");
+        t.attributes.x.value = values[0];
+        t.textContent = values[1];
+    }
+}
+
+function update_text(e) {
+    var r = find_child(e, "rect");
+    var t = find_child(e, "text");
+    var w = parseFloat(r.attributes.width.value) * frames.attributes.width.value / 100 - 3;
+    var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+    t.attributes.x.value = format_percent((parseFloat(r.attributes.x.value) + (100 * 3 / frames.attributes.width.value)));
+
+    // Smaller than this size won't fit anything
+    if (w < 2 * fontsize * fontwidth) {
+        t.textContent = "";
+        return;
+    }
+    t.textContent = txt;
+    // Fit in full text width
+    if (t.getComputedTextLength() < w)
+        return;
+    if (truncate_text_right) {
+        // Truncate the right side of the text.
+        for (var x = txt.length - 2; x > 0; x--) {
+            if (t.getSubStringLength(0, x + 2) <= w) {
+                t.textContent = txt.substring(0, x) + "..";
+                return;
+            }
+        }
+    } else {
+        // Truncate the left side of the text.
+        for (var x = 2; x < txt.length; x++) {
+            if (t.getSubStringLength(x - 2, txt.length) <= w) {
+                t.textContent = ".." + txt.substring(x, txt.length);
+                return;
+            }
+        }
+    }
+    t.textContent = "";
+}
+// zoom
+function zoom_reset(e) {
+    if (e.tagName == "rect") {
+        e.attributes.x.value = format_percent(100 * parseInt(e.attributes["fg:x"].value) / total_samples);
+        e.attributes.width.value = format_percent(100 * parseInt(e.attributes["fg:w"].value) / total_samples);
+    }
+    if (e.childNodes == undefined) return;
+    for(var i = 0, c = e.childNodes; i < c.length; i++) {
+        zoom_reset(c[i]);
+    }
+}
+function zoom_child(e, x, zoomed_width_samples) {
+    if (e.tagName == "text") {
+        var parent_x = parseFloat(find_child(e.parentNode, "rect[x]").attributes.x.value);
+        e.attributes.x.value = format_percent(parent_x + (100 * 3 / frames.attributes.width.value));
+    } else if (e.tagName == "rect") {
+        e.attributes.x.value = format_percent(100 * (parseInt(e.attributes["fg:x"].value) - x) / zoomed_width_samples);
+        e.attributes.width.value = format_percent(100 * parseInt(e.attributes["fg:w"].value) / zoomed_width_samples);
+    }
+    if (e.childNodes == undefined) return;
+    for(var i = 0, c = e.childNodes; i < c.length; i++) {
+        zoom_child(c[i], x, zoomed_width_samples);
+    }
+}
+function zoom_parent(e) {
+    if (e.attributes) {
+        if (e.attributes.x != undefined) {
+            e.attributes.x.value = "0.0%";
+        }
+        if (e.attributes.width != undefined) {
+            e.attributes.width.value = "100.0%";
+        }
+    }
+    if (e.childNodes == undefined) return;
+    for(var i = 0, c = e.childNodes; i < c.length; i++) {
+        zoom_parent(c[i]);
+    }
+}
+function zoom(node) {
+    var attr = find_child(node, "rect").attributes;
+    var width = parseInt(attr["fg:w"].value);
+    var xmin = parseInt(attr["fg:x"].value);
+    var xmax = xmin + width;
+    var ymin = parseFloat(attr.y.value);
+    unzoombtn.classList.remove("hide");
+    var el = frames.children;
+    var to_update_text = [];
+    for (var i = 0; i < el.length; i++) {
+        var e = el[i];
+        var a = find_child(e, "rect").attributes;
+        var ex = parseInt(a["fg:x"].value);
+        var ew = parseInt(a["fg:w"].value);
+        // Is it an ancestor
+        if (!inverted) {
+            var upstack = parseFloat(a.y.value) > ymin;
+        } else {
+            var upstack = parseFloat(a.y.value) < ymin;
+        }
+        if (upstack) {
+            // Direct ancestor
+            if (ex <= xmin && (ex+ew) >= xmax) {
+                e.classList.add("parent");
+                zoom_parent(e);
+                to_update_text.push(e);
+            }
+            // not in current path
+            else
+                e.classList.add("hide");
+        }
+        // Children maybe
+        else {
+            // no common path
+            if (ex < xmin || ex >= xmax) {
+                e.classList.add("hide");
+            }
+            else {
+                zoom_child(e, xmin, width);
+                to_update_text.push(e);
+            }
+        }
+    }
+    update_text_for_elements(to_update_text);
+}
+function unzoom() {
+    unzoombtn.classList.add("hide");
+    var el = frames.children;
+    for(var i = 0; i < el.length; i++) {
+        el[i].classList.remove("parent");
+        el[i].classList.remove("hide");
+        zoom_reset(el[i]);
+    }
+    update_text_for_elements(el);
+}
+// search
+function reset_search() {
+    var el = document.querySelectorAll("#frames rect");
+    for (var i = 0; i < el.length; i++) {
+        orig_load(el[i], "fill")
+    }
+    var params = get_params();
+    delete params.s;
+    history.replaceState(null, null, parse_params(params));
+}
+function search_prompt() {
+    if (!searching) {
+        var term = prompt("Enter a search term (regexp " +
+            "allowed, eg: ^ext4_)", "");
+        if (term != null) {
+            search(term)
+        }
+    } else {
+        reset_search();
+        searching = 0;
+        searchbtn.classList.remove("show");
+        searchbtn.firstChild.nodeValue = "Search"
+        matchedtxt.classList.add("hide");
+        matchedtxt.firstChild.nodeValue = ""
+    }
+}
+function search(term) {
+    var re = new RegExp(term);
+    var el = frames.children;
+    var matches = new Object();
+    var maxwidth = 0;
+    for (var i = 0; i < el.length; i++) {
+        var e = el[i];
+        // Skip over frames which are either not visible, or below the zoomed-to frame
+        if (e.classList.contains("hide") || e.classList.contains("parent")) {
+            continue;
+        }
+        var func = g_to_func(e);
+        var rect = find_child(e, "rect");
+        if (func == null || rect == null)
+            continue;
+        // Save max width. Only works as we have a root frame
+        var w = parseInt(rect.attributes["fg:w"].value);
+        if (w > maxwidth)
+            maxwidth = w;
+        if (func.match(re)) {
+            // highlight
+            var x = parseInt(rect.attributes["fg:x"].value);
+            orig_save(rect, "fill");
+            rect.attributes.fill.value = searchcolor;
+            // remember matches
+            if (matches[x] == undefined) {
+                matches[x] = w;
+            } else {
+                if (w > matches[x]) {
+                    // overwrite with parent
+                    matches[x] = w;
+                }
+            }
+            searching = 1;
+        }
+    }
+    if (!searching)
+        return;
+    var params = get_params();
+    params.s = term;
+    history.replaceState(null, null, parse_params(params));
+
+    searchbtn.classList.add("show");
+    searchbtn.firstChild.nodeValue = "Reset Search";
+    // calculate percent matched, excluding vertical overlap
+    var count = 0;
+    var lastx = -1;
+    var lastw = 0;
+    var keys = Array();
+    for (k in matches) {
+        if (matches.hasOwnProperty(k))
+            keys.push(k);
+    }
+    // sort the matched frames by their x location
+    // ascending, then width descending
+    keys.sort(function(a, b){
+        return a - b;
+    });
+    // Step through frames saving only the biggest bottom-up frames
+    // thanks to the sort order. This relies on the tree property
+    // where children are always smaller than their parents.
+    for (var k in keys) {
+        var x = parseInt(keys[k]);
+        var w = matches[keys[k]];
+        if (x >= lastx + lastw) {
+            count += w;
+            lastx = x;
+            lastw = w;
+        }
+    }
+    // display matched percent
+    matchedtxt.classList.remove("hide");
+    var pct = 100 * count / maxwidth;
+    if (pct != 100) pct = pct.toFixed(1);
+    matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+}
+function format_percent(n) {
+    return n.toFixed(4) + "%";
+}
+]]></script><rect x="0" y="0" width="100%" height="1094" fill="url(#background)"/><text id="title" fill="rgb(0,0,0)" x="50.0000%" y="24.00">Flame Graph</text><text id="details" fill="rgb(0,0,0)" x="10" y="1077.00"> </text><text id="unzoom" class="hide" fill="rgb(0,0,0)" x="10" y="24.00">Reset Zoom</text><text id="search" fill="rgb(0,0,0)" x="1190" y="24.00">Search</text><text id="matched" fill="rgb(0,0,0)" x="1190" y="1077.00"> </text><svg id="frames" x="10" width="1180" total_samples="22"><g><title>__pthread_getattr_np (1 samples, 4.55%)</title><rect x="22.7273%" y="933" width="4.5455%" height="15" fill="rgb(227,0,7)" fg:x="5" fg:w="1"/><text x="22.9773%" y="943.50">__pth..</text></g><g><title>__GI___isoc99_sscanf (1 samples, 4.55%)</title><rect x="22.7273%" y="917" width="4.5455%" height="15" fill="rgb(217,0,24)" fg:x="5" fg:w="1"/><text x="22.9773%" y="927.50">__GI_..</text></g><g><title>_IO_strfile_read (1 samples, 4.55%)</title><rect x="22.7273%" y="901" width="4.5455%" height="15" fill="rgb(221,193,54)" fg:x="5" fg:w="1"/><text x="22.9773%" y="911.50">_IO_s..</text></g><g><title>_IO_str_init_static_internal (1 samples, 4.55%)</title><rect x="22.7273%" y="885" width="4.5455%" height="15" fill="rgb(248,212,6)" fg:x="5" fg:w="1"/><text x="22.9773%" y="895.50">_IO_s..</text></g><g><title>__GI___rawmemchr (1 samples, 4.55%)</title><rect x="22.7273%" y="869" width="4.5455%" height="15" fill="rgb(208,68,35)" fg:x="5" fg:w="1"/><text x="22.9773%" y="879.50">__GI_..</text></g><g><title>__GI___strlen_asimd (1 samples, 4.55%)</title><rect x="22.7273%" y="853" width="4.5455%" height="15" fill="rgb(232,128,0)" fg:x="5" fg:w="1"/><text x="22.9773%" y="863.50">__GI_..</text></g><g><title>core::ptr::drop_in_place&lt;wasmtime::runtime::component::linker::Linker&lt;host::device::HostState&gt;&gt; (1 samples, 4.55%)</title><rect x="27.2727%" y="837" width="4.5455%" height="15" fill="rgb(207,160,47)" fg:x="6" fg:w="1"/><text x="27.5227%" y="847.50">core:..</text></g><g><title>core::ptr::drop_in_place&lt;wasmtime::runtime::component::linker::NameMap&gt; (1 samples, 4.55%)</title><rect x="27.2727%" y="821" width="4.5455%" height="15" fill="rgb(228,23,34)" fg:x="6" fg:w="1"/><text x="27.5227%" y="831.50">core:..</text></g><g><title>core::ptr::drop_in_place&lt;std::collections::hash::map::HashMap&lt;usize,wasmtime::runtime::component::linker::Definition&gt;&gt; (1 samples, 4.55%)</title><rect x="27.2727%" y="805" width="4.5455%" height="15" fill="rgb(218,30,26)" fg:x="6" fg:w="1"/><text x="27.5227%" y="815.50">core:..</text></g><g><title>core::ptr::drop_in_place&lt;hashbrown::map::HashMap&lt;usize,wasmtime::runtime::component::linker::Definition,std::hash::random::RandomState&gt;&gt; (1 samples, 4.55%)</title><rect x="27.2727%" y="789" width="4.5455%" height="15" fill="rgb(220,122,19)" fg:x="6" fg:w="1"/><text x="27.5227%" y="799.50">core:..</text></g><g><title>core::ptr::drop_in_place&lt;hashbrown::raw::RawTable&lt;(usize,wasmtime::runtime::component::linker::Definition)&gt;&gt; (1 samples, 4.55%)</title><rect x="27.2727%" y="773" width="4.5455%" height="15" fill="rgb(250,228,42)" fg:x="6" fg:w="1"/><text x="27.5227%" y="783.50">core:..</text></g><g><title>&lt;hashbrown::raw::RawTable&lt;T,A&gt; as core::ops::drop::Drop&gt;::drop (1 samples, 4.55%)</title><rect x="27.2727%" y="757" width="4.5455%" height="15" fill="rgb(240,193,28)" fg:x="6" fg:w="1"/><text x="27.5227%" y="767.50">&lt;hash..</text></g><g><title>hashbrown::raw::RawTableInner::drop_inner_table (1 samples, 4.55%)</title><rect x="27.2727%" y="741" width="4.5455%" height="15" fill="rgb(216,20,37)" fg:x="6" fg:w="1"/><text x="27.5227%" y="751.50">hashb..</text></g><g><title>hashbrown::raw::RawTableInner::drop_elements (1 samples, 4.55%)</title><rect x="27.2727%" y="725" width="4.5455%" height="15" fill="rgb(206,188,39)" fg:x="6" fg:w="1"/><text x="27.5227%" y="735.50">hashb..</text></g><g><title>hashbrown::raw::Bucket&lt;T&gt;::drop (1 samples, 4.55%)</title><rect x="27.2727%" y="709" width="4.5455%" height="15" fill="rgb(217,207,13)" fg:x="6" fg:w="1"/><text x="27.5227%" y="719.50">hashb..</text></g><g><title>core::ptr::mut_ptr::&lt;impl *mut T&gt;::drop_in_place (1 samples, 4.55%)</title><rect x="27.2727%" y="693" width="4.5455%" height="15" fill="rgb(231,73,38)" fg:x="6" fg:w="1"/><text x="27.5227%" y="703.50">core:..</text></g><g><title>core::ptr::drop_in_place&lt;(usize,wasmtime::runtime::component::linker::Definition)&gt; (1 samples, 4.55%)</title><rect x="27.2727%" y="677" width="4.5455%" height="15" fill="rgb(225,20,46)" fg:x="6" fg:w="1"/><text x="27.5227%" y="687.50">core:..</text></g><g><title>core::ptr::drop_in_place&lt;wasmtime::runtime::component::linker::Definition&gt; (1 samples, 4.55%)</title><rect x="27.2727%" y="661" width="4.5455%" height="15" fill="rgb(210,31,41)" fg:x="6" fg:w="1"/><text x="27.5227%" y="671.50">core:..</text></g><g><title>core::ptr::drop_in_place&lt;wasmtime::runtime::component::linker::NameMap&gt; (1 samples, 4.55%)</title><rect x="27.2727%" y="645" width="4.5455%" height="15" fill="rgb(221,200,47)" fg:x="6" fg:w="1"/><text x="27.5227%" y="655.50">core:..</text></g><g><title>core::ptr::drop_in_place&lt;std::collections::hash::map::HashMap&lt;usize,wasmtime::runtime::component::linker::Definition&gt;&gt; (1 samples, 4.55%)</title><rect x="27.2727%" y="629" width="4.5455%" height="15" fill="rgb(226,26,5)" fg:x="6" fg:w="1"/><text x="27.5227%" y="639.50">core:..</text></g><g><title>core::ptr::drop_in_place&lt;hashbrown::map::HashMap&lt;usize,wasmtime::runtime::component::linker::Definition,std::hash::random::RandomState&gt;&gt; (1 samples, 4.55%)</title><rect x="27.2727%" y="613" width="4.5455%" height="15" fill="rgb(249,33,26)" fg:x="6" fg:w="1"/><text x="27.5227%" y="623.50">core:..</text></g><g><title>core::ptr::drop_in_place&lt;hashbrown::raw::RawTable&lt;(usize,wasmtime::runtime::component::linker::Definition)&gt;&gt; (1 samples, 4.55%)</title><rect x="27.2727%" y="597" width="4.5455%" height="15" fill="rgb(235,183,28)" fg:x="6" fg:w="1"/><text x="27.5227%" y="607.50">core:..</text></g><g><title>&lt;hashbrown::raw::RawTable&lt;T,A&gt; as core::ops::drop::Drop&gt;::drop (1 samples, 4.55%)</title><rect x="27.2727%" y="581" width="4.5455%" height="15" fill="rgb(221,5,38)" fg:x="6" fg:w="1"/><text x="27.5227%" y="591.50">&lt;hash..</text></g><g><title>hashbrown::raw::RawTableInner::drop_inner_table (1 samples, 4.55%)</title><rect x="27.2727%" y="565" width="4.5455%" height="15" fill="rgb(247,18,42)" fg:x="6" fg:w="1"/><text x="27.5227%" y="575.50">hashb..</text></g><g><title>hashbrown::raw::RawTableInner::drop_elements (1 samples, 4.55%)</title><rect x="27.2727%" y="549" width="4.5455%" height="15" fill="rgb(241,131,45)" fg:x="6" fg:w="1"/><text x="27.5227%" y="559.50">hashb..</text></g><g><title>hashbrown::raw::Bucket&lt;T&gt;::drop (1 samples, 4.55%)</title><rect x="27.2727%" y="533" width="4.5455%" height="15" fill="rgb(249,31,29)" fg:x="6" fg:w="1"/><text x="27.5227%" y="543.50">hashb..</text></g><g><title>core::ptr::mut_ptr::&lt;impl *mut T&gt;::drop_in_place (1 samples, 4.55%)</title><rect x="27.2727%" y="517" width="4.5455%" height="15" fill="rgb(225,111,53)" fg:x="6" fg:w="1"/><text x="27.5227%" y="527.50">core:..</text></g><g><title>core::ptr::drop_in_place&lt;(usize,wasmtime::runtime::component::linker::Definition)&gt; (1 samples, 4.55%)</title><rect x="27.2727%" y="501" width="4.5455%" height="15" fill="rgb(238,160,17)" fg:x="6" fg:w="1"/><text x="27.5227%" y="511.50">core:..</text></g><g><title>core::ptr::drop_in_place&lt;wasmtime::runtime::component::linker::Definition&gt; (1 samples, 4.55%)</title><rect x="27.2727%" y="485" width="4.5455%" height="15" fill="rgb(214,148,48)" fg:x="6" fg:w="1"/><text x="27.5227%" y="495.50">core:..</text></g><g><title>&lt;host::sensor::DeviceState as host::device::Device&gt;::new (2 samples, 9.09%)</title><rect x="27.2727%" y="853" width="9.0909%" height="15" fill="rgb(232,36,49)" fg:x="6" fg:w="2"/><text x="27.5227%" y="863.50">&lt;host::sensor..</text></g><g><title>host::sensor::_::&lt;impl host::sensor::Sensor&gt;::instantiate (1 samples, 4.55%)</title><rect x="31.8182%" y="837" width="4.5455%" height="15" fill="rgb(209,103,24)" fg:x="7" fg:w="1"/><text x="32.0682%" y="847.50">host:..</text></g><g><title>wasmtime::runtime::component::linker::Linker&lt;T&gt;::instantiate (1 samples, 4.55%)</title><rect x="31.8182%" y="821" width="4.5455%" height="15" fill="rgb(229,88,8)" fg:x="7" fg:w="1"/><text x="32.0682%" y="831.50">wasmt..</text></g><g><title>wasmtime::runtime::component::instance::InstancePre&lt;T&gt;::instantiate (1 samples, 4.55%)</title><rect x="31.8182%" y="805" width="4.5455%" height="15" fill="rgb(213,181,19)" fg:x="7" fg:w="1"/><text x="32.0682%" y="815.50">wasmt..</text></g><g><title>wasmtime::runtime::component::instance::InstancePre&lt;T&gt;::instantiate_impl (1 samples, 4.55%)</title><rect x="31.8182%" y="789" width="4.5455%" height="15" fill="rgb(254,191,54)" fg:x="7" fg:w="1"/><text x="32.0682%" y="799.50">wasmt..</text></g><g><title>wasmtime::runtime::component::instance::Instantiator::run (1 samples, 4.55%)</title><rect x="31.8182%" y="773" width="4.5455%" height="15" fill="rgb(241,83,37)" fg:x="7" fg:w="1"/><text x="32.0682%" y="783.50">wasmt..</text></g><g><title>wasmtime::runtime::instance::Instance::new_started_impl (1 samples, 4.55%)</title><rect x="31.8182%" y="757" width="4.5455%" height="15" fill="rgb(233,36,39)" fg:x="7" fg:w="1"/><text x="32.0682%" y="767.50">wasmt..</text></g><g><title>wasmtime::runtime::instance::Instance::new_raw (1 samples, 4.55%)</title><rect x="31.8182%" y="741" width="4.5455%" height="15" fill="rgb(226,3,54)" fg:x="7" fg:w="1"/><text x="32.0682%" y="751.50">wasmt..</text></g><g><title>wasmtime_runtime::instance::allocator::initialize_instance (1 samples, 4.55%)</title><rect x="31.8182%" y="725" width="4.5455%" height="15" fill="rgb(245,192,40)" fg:x="7" fg:w="1"/><text x="32.0682%" y="735.50">wasmt..</text></g><g><title>wasmtime_runtime::instance::Instance::table_init_segment (1 samples, 4.55%)</title><rect x="31.8182%" y="709" width="4.5455%" height="15" fill="rgb(238,167,29)" fg:x="7" fg:w="1"/><text x="32.0682%" y="719.50">wasmt..</text></g><g><title>wasmtime_runtime::table::Table::funcrefs_mut (1 samples, 4.55%)</title><rect x="31.8182%" y="693" width="4.5455%" height="15" fill="rgb(232,182,51)" fg:x="7" fg:w="1"/><text x="32.0682%" y="703.50">wasmt..</text></g><g><title>&lt;host::sensor::DeviceState as host::device::Device&gt;::run (1 samples, 4.55%)</title><rect x="36.3636%" y="853" width="4.5455%" height="15" fill="rgb(231,60,39)" fg:x="8" fg:w="1"/><text x="36.6136%" y="863.50">&lt;host..</text></g><g><title>host::sensor::exports::sketch::implementation::hts::Guest::call_get_temperature (1 samples, 4.55%)</title><rect x="36.3636%" y="837" width="4.5455%" height="15" fill="rgb(208,69,12)" fg:x="8" fg:w="1"/><text x="36.6136%" y="847.50">host:..</text></g><g><title>wasmtime::runtime::component::func::typed::TypedFunc&lt;Params,Return&gt;::call (1 samples, 4.55%)</title><rect x="36.3636%" y="821" width="4.5455%" height="15" fill="rgb(235,93,37)" fg:x="8" fg:w="1"/><text x="36.6136%" y="831.50">wasmt..</text></g><g><title>wasmtime::runtime::component::func::typed::TypedFunc&lt;Params,Return&gt;::call_impl (1 samples, 4.55%)</title><rect x="36.3636%" y="805" width="4.5455%" height="15" fill="rgb(213,116,39)" fg:x="8" fg:w="1"/><text x="36.6136%" y="815.50">wasmt..</text></g><g><title>wasmtime::runtime::component::func::Func::call_raw (1 samples, 4.55%)</title><rect x="36.3636%" y="789" width="4.5455%" height="15" fill="rgb(222,207,29)" fg:x="8" fg:w="1"/><text x="36.6136%" y="799.50">wasmt..</text></g><g><title>core::ops::function::FnOnce::call_once (1 samples, 4.55%)</title><rect x="36.3636%" y="773" width="4.5455%" height="15" fill="rgb(206,96,30)" fg:x="8" fg:w="1"/><text x="36.6136%" y="783.50">core:..</text></g><g><title>wasmtime::runtime::component::func::typed::TypedFunc&lt;Params,Return&gt;::lift_heap_result (1 samples, 4.55%)</title><rect x="36.3636%" y="757" width="4.5455%" height="15" fill="rgb(218,138,4)" fg:x="8" fg:w="1"/><text x="36.6136%" y="767.50">wasmt..</text></g><g><title>&lt;(A1,) as wasmtime::runtime::component::func::typed::Lift&gt;::load (1 samples, 4.55%)</title><rect x="36.3636%" y="741" width="4.5455%" height="15" fill="rgb(250,191,14)" fg:x="8" fg:w="1"/><text x="36.6136%" y="751.50">&lt;(A1,..</text></g><g><title>&lt;core::result::Result&lt;T,E&gt; as wasmtime::runtime::component::func::typed::Lift&gt;::load (1 samples, 4.55%)</title><rect x="36.3636%" y="725" width="4.5455%" height="15" fill="rgb(239,60,40)" fg:x="8" fg:w="1"/><text x="36.6136%" y="735.50">&lt;core..</text></g><g><title>wasmtime::runtime::component::func::typed::load_option (1 samples, 4.55%)</title><rect x="36.3636%" y="709" width="4.5455%" height="15" fill="rgb(206,27,48)" fg:x="8" fg:w="1"/><text x="36.6136%" y="719.50">wasmt..</text></g><g><title>&lt;alloc::string::String as wasmtime::runtime::component::func::typed::Lift&gt;::load (1 samples, 4.55%)</title><rect x="36.3636%" y="693" width="4.5455%" height="15" fill="rgb(225,35,8)" fg:x="8" fg:w="1"/><text x="36.6136%" y="703.50">&lt;allo..</text></g><g><title>&lt;T as core::convert::Into&lt;U&gt;&gt;::into (1 samples, 4.55%)</title><rect x="36.3636%" y="677" width="4.5455%" height="15" fill="rgb(250,213,24)" fg:x="8" fg:w="1"/><text x="36.6136%" y="687.50">&lt;T as..</text></g><g><title>&lt;alloc::string::String as core::convert::From&lt;alloc::borrow::Cow&lt;str&gt;&gt;&gt;::from (1 samples, 4.55%)</title><rect x="36.3636%" y="661" width="4.5455%" height="15" fill="rgb(247,123,22)" fg:x="8" fg:w="1"/><text x="36.6136%" y="671.50">&lt;allo..</text></g><g><title>__GI___libc_malloc (1 samples, 4.55%)</title><rect x="36.3636%" y="645" width="4.5455%" height="15" fill="rgb(231,138,38)" fg:x="8" fg:w="1"/><text x="36.6136%" y="655.50">__GI_..</text></g><g><title>wasmtime::engine::Engine::load_code_file (1 samples, 4.55%)</title><rect x="40.9091%" y="821" width="4.5455%" height="15" fill="rgb(231,145,46)" fg:x="9" fg:w="1"/><text x="41.1591%" y="831.50">wasmt..</text></g><g><title>wasmtime::engine::Engine::load_code (1 samples, 4.55%)</title><rect x="40.9091%" y="805" width="4.5455%" height="15" fill="rgb(251,118,11)" fg:x="9" fg:w="1"/><text x="41.1591%" y="815.50">wasmt..</text></g><g><title>wasmtime::engine::serialization::check_compatible (1 samples, 4.55%)</title><rect x="40.9091%" y="789" width="4.5455%" height="15" fill="rgb(217,147,25)" fg:x="9" fg:w="1"/><text x="41.1591%" y="799.50">wasmt..</text></g><g><title>wasmtime::engine::serialization::Metadata::check_compatible (1 samples, 4.55%)</title><rect x="40.9091%" y="773" width="4.5455%" height="15" fill="rgb(247,81,37)" fg:x="9" fg:w="1"/><text x="41.1591%" y="783.50">wasmt..</text></g><g><title>wasmtime::engine::serialization::Metadata::check_triple (1 samples, 4.55%)</title><rect x="40.9091%" y="757" width="4.5455%" height="15" fill="rgb(209,12,38)" fg:x="9" fg:w="1"/><text x="41.1591%" y="767.50">wasmt..</text></g><g><title>&lt;target_lexicon::triple::Triple as core::str::traits::FromStr&gt;::from_str (1 samples, 4.55%)</title><rect x="40.9091%" y="741" width="4.5455%" height="15" fill="rgb(227,1,9)" fg:x="9" fg:w="1"/><text x="41.1591%" y="751.50">&lt;targ..</text></g><g><title>core::str::iter::SplitInternal&lt;P&gt;::next (1 samples, 4.55%)</title><rect x="40.9091%" y="725" width="4.5455%" height="15" fill="rgb(248,47,43)" fg:x="9" fg:w="1"/><text x="41.1591%" y="735.50">core:..</text></g><g><title>core::slice::memchr::memchr_aligned (1 samples, 4.55%)</title><rect x="40.9091%" y="709" width="4.5455%" height="15" fill="rgb(221,10,30)" fg:x="9" fg:w="1"/><text x="41.1591%" y="719.50">core:..</text></g><g><title>cranelift_entity::primary::_::&lt;impl serde::de::Deserialize for cranelift_entity::primary::PrimaryMap&lt;K,V&gt;&gt;::deserialize (1 samples, 4.55%)</title><rect x="45.4545%" y="613" width="4.5455%" height="15" fill="rgb(210,229,1)" fg:x="10" fg:w="1"/><text x="45.7045%" y="623.50">crane..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_struct (1 samples, 4.55%)</title><rect x="45.4545%" y="597" width="4.5455%" height="15" fill="rgb(222,148,37)" fg:x="10" fg:w="1"/><text x="45.7045%" y="607.50">&lt;&amp;mut..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple (1 samples, 4.55%)</title><rect x="45.4545%" y="581" width="4.5455%" height="15" fill="rgb(234,67,33)" fg:x="10" fg:w="1"/><text x="45.7045%" y="591.50">&lt;&amp;mut..</text></g><g><title>&lt;cranelift_entity::primary::_::&lt;impl serde::de::Deserialize for cranelift_entity::primary::PrimaryMap&lt;K,V&gt;&gt;::deserialize::__Visitor&lt;K,V&gt; as serde::de::Visitor&gt;::visit_seq (1 samples, 4.55%)</title><rect x="45.4545%" y="565" width="4.5455%" height="15" fill="rgb(247,98,35)" fg:x="10" fg:w="1"/><text x="45.7045%" y="575.50">&lt;cran..</text></g><g><title>serde::de::SeqAccess::next_element (1 samples, 4.55%)</title><rect x="45.4545%" y="549" width="4.5455%" height="15" fill="rgb(247,138,52)" fg:x="10" fg:w="1"/><text x="45.7045%" y="559.50">serde..</text></g><g><title>&lt;&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple::Access&lt;R,O&gt; as serde::de::SeqAccess&gt;::next_element_seed (1 samples, 4.55%)</title><rect x="45.4545%" y="533" width="4.5455%" height="15" fill="rgb(213,79,30)" fg:x="10" fg:w="1"/><text x="45.7045%" y="543.50">&lt;&lt;&amp;mu..</text></g><g><title>&lt;core::marker::PhantomData&lt;T&gt; as serde::de::DeserializeSeed&gt;::deserialize (1 samples, 4.55%)</title><rect x="45.4545%" y="517" width="4.5455%" height="15" fill="rgb(246,177,23)" fg:x="10" fg:w="1"/><text x="45.7045%" y="527.50">&lt;core..</text></g><g><title>serde::de::impls::&lt;impl serde::de::Deserialize for alloc::vec::Vec&lt;T&gt;&gt;::deserialize (1 samples, 4.55%)</title><rect x="45.4545%" y="501" width="4.5455%" height="15" fill="rgb(230,62,27)" fg:x="10" fg:w="1"/><text x="45.7045%" y="511.50">serde..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_seq (1 samples, 4.55%)</title><rect x="45.4545%" y="485" width="4.5455%" height="15" fill="rgb(216,154,8)" fg:x="10" fg:w="1"/><text x="45.7045%" y="495.50">&lt;&amp;mut..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple (1 samples, 4.55%)</title><rect x="45.4545%" y="469" width="4.5455%" height="15" fill="rgb(244,35,45)" fg:x="10" fg:w="1"/><text x="45.7045%" y="479.50">&lt;&amp;mut..</text></g><g><title>&lt;serde::de::impls::&lt;impl serde::de::Deserialize for alloc::vec::Vec&lt;T&gt;&gt;::deserialize::VecVisitor&lt;T&gt; as serde::de::Visitor&gt;::visit_seq (1 samples, 4.55%)</title><rect x="45.4545%" y="453" width="4.5455%" height="15" fill="rgb(251,115,12)" fg:x="10" fg:w="1"/><text x="45.7045%" y="463.50">&lt;serd..</text></g><g><title>serde::de::SeqAccess::next_element (1 samples, 4.55%)</title><rect x="45.4545%" y="437" width="4.5455%" height="15" fill="rgb(240,54,50)" fg:x="10" fg:w="1"/><text x="45.7045%" y="447.50">serde..</text></g><g><title>&lt;&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple::Access&lt;R,O&gt; as serde::de::SeqAccess&gt;::next_element_seed (1 samples, 4.55%)</title><rect x="45.4545%" y="421" width="4.5455%" height="15" fill="rgb(233,84,52)" fg:x="10" fg:w="1"/><text x="45.7045%" y="431.50">&lt;&lt;&amp;mu..</text></g><g><title>&lt;core::marker::PhantomData&lt;T&gt; as serde::de::DeserializeSeed&gt;::deserialize (1 samples, 4.55%)</title><rect x="45.4545%" y="405" width="4.5455%" height="15" fill="rgb(207,117,47)" fg:x="10" fg:w="1"/><text x="45.7045%" y="415.50">&lt;core..</text></g><g><title>wasmtime_environ::module_artifacts::_::&lt;impl serde::de::Deserialize for wasmtime_environ::module_artifacts::CompiledModuleInfo&gt;::deserialize (1 samples, 4.55%)</title><rect x="45.4545%" y="389" width="4.5455%" height="15" fill="rgb(249,43,39)" fg:x="10" fg:w="1"/><text x="45.7045%" y="399.50">wasmt..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_struct (1 samples, 4.55%)</title><rect x="45.4545%" y="373" width="4.5455%" height="15" fill="rgb(209,38,44)" fg:x="10" fg:w="1"/><text x="45.7045%" y="383.50">&lt;&amp;mut..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple (1 samples, 4.55%)</title><rect x="45.4545%" y="357" width="4.5455%" height="15" fill="rgb(236,212,23)" fg:x="10" fg:w="1"/><text x="45.7045%" y="367.50">&lt;&amp;mut..</text></g><g><title>&lt;wasmtime_environ::module_artifacts::_::&lt;impl serde::de::Deserialize for wasmtime_environ::module_artifacts::CompiledModuleInfo&gt;::deserialize::__Visitor as serde::de::Visitor&gt;::visit_seq (1 samples, 4.55%)</title><rect x="45.4545%" y="341" width="4.5455%" height="15" fill="rgb(242,79,21)" fg:x="10" fg:w="1"/><text x="45.7045%" y="351.50">&lt;wasm..</text></g><g><title>serde::de::SeqAccess::next_element (1 samples, 4.55%)</title><rect x="45.4545%" y="325" width="4.5455%" height="15" fill="rgb(211,96,35)" fg:x="10" fg:w="1"/><text x="45.7045%" y="335.50">serde..</text></g><g><title>&lt;&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple::Access&lt;R,O&gt; as serde::de::SeqAccess&gt;::next_element_seed (1 samples, 4.55%)</title><rect x="45.4545%" y="309" width="4.5455%" height="15" fill="rgb(253,215,40)" fg:x="10" fg:w="1"/><text x="45.7045%" y="319.50">&lt;&lt;&amp;mu..</text></g><g><title>&lt;core::marker::PhantomData&lt;T&gt; as serde::de::DeserializeSeed&gt;::deserialize (1 samples, 4.55%)</title><rect x="45.4545%" y="293" width="4.5455%" height="15" fill="rgb(211,81,21)" fg:x="10" fg:w="1"/><text x="45.7045%" y="303.50">&lt;core..</text></g><g><title>cranelift_entity::primary::_::&lt;impl serde::de::Deserialize for cranelift_entity::primary::PrimaryMap&lt;K,V&gt;&gt;::deserialize (1 samples, 4.55%)</title><rect x="45.4545%" y="277" width="4.5455%" height="15" fill="rgb(208,190,38)" fg:x="10" fg:w="1"/><text x="45.7045%" y="287.50">crane..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_struct (1 samples, 4.55%)</title><rect x="45.4545%" y="261" width="4.5455%" height="15" fill="rgb(235,213,38)" fg:x="10" fg:w="1"/><text x="45.7045%" y="271.50">&lt;&amp;mut..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple (1 samples, 4.55%)</title><rect x="45.4545%" y="245" width="4.5455%" height="15" fill="rgb(237,122,38)" fg:x="10" fg:w="1"/><text x="45.7045%" y="255.50">&lt;&amp;mut..</text></g><g><title>&lt;cranelift_entity::primary::_::&lt;impl serde::de::Deserialize for cranelift_entity::primary::PrimaryMap&lt;K,V&gt;&gt;::deserialize::__Visitor&lt;K,V&gt; as serde::de::Visitor&gt;::visit_seq (1 samples, 4.55%)</title><rect x="45.4545%" y="229" width="4.5455%" height="15" fill="rgb(244,218,35)" fg:x="10" fg:w="1"/><text x="45.7045%" y="239.50">&lt;cran..</text></g><g><title>serde::de::SeqAccess::next_element (1 samples, 4.55%)</title><rect x="45.4545%" y="213" width="4.5455%" height="15" fill="rgb(240,68,47)" fg:x="10" fg:w="1"/><text x="45.7045%" y="223.50">serde..</text></g><g><title>&lt;&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple::Access&lt;R,O&gt; as serde::de::SeqAccess&gt;::next_element_seed (1 samples, 4.55%)</title><rect x="45.4545%" y="197" width="4.5455%" height="15" fill="rgb(210,16,53)" fg:x="10" fg:w="1"/><text x="45.7045%" y="207.50">&lt;&lt;&amp;mu..</text></g><g><title>&lt;core::marker::PhantomData&lt;T&gt; as serde::de::DeserializeSeed&gt;::deserialize (1 samples, 4.55%)</title><rect x="45.4545%" y="181" width="4.5455%" height="15" fill="rgb(235,124,12)" fg:x="10" fg:w="1"/><text x="45.7045%" y="191.50">&lt;core..</text></g><g><title>serde::de::impls::&lt;impl serde::de::Deserialize for alloc::vec::Vec&lt;T&gt;&gt;::deserialize (1 samples, 4.55%)</title><rect x="45.4545%" y="165" width="4.5455%" height="15" fill="rgb(224,169,11)" fg:x="10" fg:w="1"/><text x="45.7045%" y="175.50">serde..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_seq (1 samples, 4.55%)</title><rect x="45.4545%" y="149" width="4.5455%" height="15" fill="rgb(250,166,2)" fg:x="10" fg:w="1"/><text x="45.7045%" y="159.50">&lt;&amp;mut..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple (1 samples, 4.55%)</title><rect x="45.4545%" y="133" width="4.5455%" height="15" fill="rgb(242,216,29)" fg:x="10" fg:w="1"/><text x="45.7045%" y="143.50">&lt;&amp;mut..</text></g><g><title>&lt;serde::de::impls::&lt;impl serde::de::Deserialize for alloc::vec::Vec&lt;T&gt;&gt;::deserialize::VecVisitor&lt;T&gt; as serde::de::Visitor&gt;::visit_seq (1 samples, 4.55%)</title><rect x="45.4545%" y="117" width="4.5455%" height="15" fill="rgb(230,116,27)" fg:x="10" fg:w="1"/><text x="45.7045%" y="127.50">&lt;serd..</text></g><g><title>serde::de::SeqAccess::next_element (1 samples, 4.55%)</title><rect x="45.4545%" y="101" width="4.5455%" height="15" fill="rgb(228,99,48)" fg:x="10" fg:w="1"/><text x="45.7045%" y="111.50">serde..</text></g><g><title>&lt;&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple::Access&lt;R,O&gt; as serde::de::SeqAccess&gt;::next_element_seed (1 samples, 4.55%)</title><rect x="45.4545%" y="85" width="4.5455%" height="15" fill="rgb(253,11,6)" fg:x="10" fg:w="1"/><text x="45.7045%" y="95.50">&lt;&lt;&amp;mu..</text></g><g><title>&lt;core::marker::PhantomData&lt;T&gt; as serde::de::DeserializeSeed&gt;::deserialize (1 samples, 4.55%)</title><rect x="45.4545%" y="69" width="4.5455%" height="15" fill="rgb(247,143,39)" fg:x="10" fg:w="1"/><text x="45.7045%" y="79.50">&lt;core..</text></g><g><title>wasmtime_environ::module_artifacts::_::&lt;impl serde::de::Deserialize for wasmtime_environ::module_artifacts::CompiledFunctionInfo&gt;::deserialize (1 samples, 4.55%)</title><rect x="45.4545%" y="53" width="4.5455%" height="15" fill="rgb(236,97,10)" fg:x="10" fg:w="1"/><text x="45.7045%" y="63.50">wasmt..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_struct (1 samples, 4.55%)</title><rect x="45.4545%" y="37" width="4.5455%" height="15" fill="rgb(233,208,19)" fg:x="10" fg:w="1"/><text x="45.7045%" y="47.50">&lt;&amp;mut..</text></g><g><title>bincode::deserialize (2 samples, 9.09%)</title><rect x="45.4545%" y="805" width="9.0909%" height="15" fill="rgb(216,164,2)" fg:x="10" fg:w="2"/><text x="45.7045%" y="815.50">bincode::dese..</text></g><g><title>bincode::config::Options::deserialize (2 samples, 9.09%)</title><rect x="45.4545%" y="789" width="9.0909%" height="15" fill="rgb(220,129,5)" fg:x="10" fg:w="2"/><text x="45.7045%" y="799.50">bincode::conf..</text></g><g><title>bincode::internal::deserialize (2 samples, 9.09%)</title><rect x="45.4545%" y="773" width="9.0909%" height="15" fill="rgb(242,17,10)" fg:x="10" fg:w="2"/><text x="45.7045%" y="783.50">bincode::inte..</text></g><g><title>bincode::internal::deserialize_seed (2 samples, 9.09%)</title><rect x="45.4545%" y="757" width="9.0909%" height="15" fill="rgb(242,107,0)" fg:x="10" fg:w="2"/><text x="45.7045%" y="767.50">bincode::inte..</text></g><g><title>&lt;core::marker::PhantomData&lt;T&gt; as serde::de::DeserializeSeed&gt;::deserialize (2 samples, 9.09%)</title><rect x="45.4545%" y="741" width="9.0909%" height="15" fill="rgb(251,28,31)" fg:x="10" fg:w="2"/><text x="45.7045%" y="751.50">&lt;core::marker..</text></g><g><title>wasmtime_environ::component::artifacts::_::&lt;impl serde::de::Deserialize for wasmtime_environ::component::artifacts::ComponentArtifacts&gt;::deserialize (2 samples, 9.09%)</title><rect x="45.4545%" y="725" width="9.0909%" height="15" fill="rgb(233,223,10)" fg:x="10" fg:w="2"/><text x="45.7045%" y="735.50">wasmtime_envi..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_struct (2 samples, 9.09%)</title><rect x="45.4545%" y="709" width="9.0909%" height="15" fill="rgb(215,21,27)" fg:x="10" fg:w="2"/><text x="45.7045%" y="719.50">&lt;&amp;mut bincode..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple (2 samples, 9.09%)</title><rect x="45.4545%" y="693" width="9.0909%" height="15" fill="rgb(232,23,21)" fg:x="10" fg:w="2"/><text x="45.7045%" y="703.50">&lt;&amp;mut bincode..</text></g><g><title>&lt;wasmtime_environ::component::artifacts::_::&lt;impl serde::de::Deserialize for wasmtime_environ::component::artifacts::ComponentArtifacts&gt;::deserialize::__Visitor as serde::de::Visitor&gt;::visit_seq (2 samples, 9.09%)</title><rect x="45.4545%" y="677" width="9.0909%" height="15" fill="rgb(244,5,23)" fg:x="10" fg:w="2"/><text x="45.7045%" y="687.50">&lt;wasmtime_env..</text></g><g><title>serde::de::SeqAccess::next_element (2 samples, 9.09%)</title><rect x="45.4545%" y="661" width="9.0909%" height="15" fill="rgb(226,81,46)" fg:x="10" fg:w="2"/><text x="45.7045%" y="671.50">serde::de::Se..</text></g><g><title>&lt;&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple::Access&lt;R,O&gt; as serde::de::SeqAccess&gt;::next_element_seed (2 samples, 9.09%)</title><rect x="45.4545%" y="645" width="9.0909%" height="15" fill="rgb(247,70,30)" fg:x="10" fg:w="2"/><text x="45.7045%" y="655.50">&lt;&lt;&amp;mut bincod..</text></g><g><title>&lt;core::marker::PhantomData&lt;T&gt; as serde::de::DeserializeSeed&gt;::deserialize (2 samples, 9.09%)</title><rect x="45.4545%" y="629" width="9.0909%" height="15" fill="rgb(212,68,19)" fg:x="10" fg:w="2"/><text x="45.7045%" y="639.50">&lt;core::marker..</text></g><g><title>wasmtime_environ::component::artifacts::_::&lt;impl serde::de::Deserialize for wasmtime_environ::component::artifacts::CompiledComponentInfo&gt;::deserialize (1 samples, 4.55%)</title><rect x="50.0000%" y="613" width="4.5455%" height="15" fill="rgb(240,187,13)" fg:x="11" fg:w="1"/><text x="50.2500%" y="623.50">wasmt..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_struct (1 samples, 4.55%)</title><rect x="50.0000%" y="597" width="4.5455%" height="15" fill="rgb(223,113,26)" fg:x="11" fg:w="1"/><text x="50.2500%" y="607.50">&lt;&amp;mut..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple (1 samples, 4.55%)</title><rect x="50.0000%" y="581" width="4.5455%" height="15" fill="rgb(206,192,2)" fg:x="11" fg:w="1"/><text x="50.2500%" y="591.50">&lt;&amp;mut..</text></g><g><title>&lt;wasmtime_environ::component::artifacts::_::&lt;impl serde::de::Deserialize for wasmtime_environ::component::artifacts::CompiledComponentInfo&gt;::deserialize::__Visitor as serde::de::Visitor&gt;::visit_seq (1 samples, 4.55%)</title><rect x="50.0000%" y="565" width="4.5455%" height="15" fill="rgb(241,108,4)" fg:x="11" fg:w="1"/><text x="50.2500%" y="575.50">&lt;wasm..</text></g><g><title>serde::de::SeqAccess::next_element (1 samples, 4.55%)</title><rect x="50.0000%" y="549" width="4.5455%" height="15" fill="rgb(247,173,49)" fg:x="11" fg:w="1"/><text x="50.2500%" y="559.50">serde..</text></g><g><title>&lt;&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple::Access&lt;R,O&gt; as serde::de::SeqAccess&gt;::next_element_seed (1 samples, 4.55%)</title><rect x="50.0000%" y="533" width="4.5455%" height="15" fill="rgb(224,114,35)" fg:x="11" fg:w="1"/><text x="50.2500%" y="543.50">&lt;&lt;&amp;mu..</text></g><g><title>&lt;core::marker::PhantomData&lt;T&gt; as serde::de::DeserializeSeed&gt;::deserialize (1 samples, 4.55%)</title><rect x="50.0000%" y="517" width="4.5455%" height="15" fill="rgb(245,159,27)" fg:x="11" fg:w="1"/><text x="50.2500%" y="527.50">&lt;core..</text></g><g><title>wasmtime_environ::component::info::_::&lt;impl serde::de::Deserialize for wasmtime_environ::component::info::Component&gt;::deserialize (1 samples, 4.55%)</title><rect x="50.0000%" y="501" width="4.5455%" height="15" fill="rgb(245,172,44)" fg:x="11" fg:w="1"/><text x="50.2500%" y="511.50">wasmt..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_struct (1 samples, 4.55%)</title><rect x="50.0000%" y="485" width="4.5455%" height="15" fill="rgb(236,23,11)" fg:x="11" fg:w="1"/><text x="50.2500%" y="495.50">&lt;&amp;mut..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple (1 samples, 4.55%)</title><rect x="50.0000%" y="469" width="4.5455%" height="15" fill="rgb(205,117,38)" fg:x="11" fg:w="1"/><text x="50.2500%" y="479.50">&lt;&amp;mut..</text></g><g><title>&lt;wasmtime_environ::component::info::_::&lt;impl serde::de::Deserialize for wasmtime_environ::component::info::Component&gt;::deserialize::__Visitor as serde::de::Visitor&gt;::visit_seq (1 samples, 4.55%)</title><rect x="50.0000%" y="453" width="4.5455%" height="15" fill="rgb(237,72,25)" fg:x="11" fg:w="1"/><text x="50.2500%" y="463.50">&lt;wasm..</text></g><g><title>serde::de::SeqAccess::next_element (1 samples, 4.55%)</title><rect x="50.0000%" y="437" width="4.5455%" height="15" fill="rgb(244,70,9)" fg:x="11" fg:w="1"/><text x="50.2500%" y="447.50">serde..</text></g><g><title>&lt;&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple::Access&lt;R,O&gt; as serde::de::SeqAccess&gt;::next_element_seed (1 samples, 4.55%)</title><rect x="50.0000%" y="421" width="4.5455%" height="15" fill="rgb(217,125,39)" fg:x="11" fg:w="1"/><text x="50.2500%" y="431.50">&lt;&lt;&amp;mu..</text></g><g><title>&lt;core::marker::PhantomData&lt;T&gt; as serde::de::DeserializeSeed&gt;::deserialize (1 samples, 4.55%)</title><rect x="50.0000%" y="405" width="4.5455%" height="15" fill="rgb(235,36,10)" fg:x="11" fg:w="1"/><text x="50.2500%" y="415.50">&lt;core..</text></g><g><title>indexmap::serde::&lt;impl serde::de::Deserialize for indexmap::map::IndexMap&lt;K,V,S&gt;&gt;::deserialize (1 samples, 4.55%)</title><rect x="50.0000%" y="389" width="4.5455%" height="15" fill="rgb(251,123,47)" fg:x="11" fg:w="1"/><text x="50.2500%" y="399.50">index..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_map (1 samples, 4.55%)</title><rect x="50.0000%" y="373" width="4.5455%" height="15" fill="rgb(221,13,13)" fg:x="11" fg:w="1"/><text x="50.2500%" y="383.50">&lt;&amp;mut..</text></g><g><title>&lt;indexmap::serde::IndexMapVisitor&lt;K,V,S&gt; as serde::de::Visitor&gt;::visit_map (1 samples, 4.55%)</title><rect x="50.0000%" y="357" width="4.5455%" height="15" fill="rgb(238,131,9)" fg:x="11" fg:w="1"/><text x="50.2500%" y="367.50">&lt;inde..</text></g><g><title>serde::de::MapAccess::next_entry (1 samples, 4.55%)</title><rect x="50.0000%" y="341" width="4.5455%" height="15" fill="rgb(211,50,8)" fg:x="11" fg:w="1"/><text x="50.2500%" y="351.50">serde..</text></g><g><title>serde::de::MapAccess::next_entry_seed (1 samples, 4.55%)</title><rect x="50.0000%" y="325" width="4.5455%" height="15" fill="rgb(245,182,24)" fg:x="11" fg:w="1"/><text x="50.2500%" y="335.50">serde..</text></g><g><title>&lt;&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_map::Access&lt;R,O&gt; as serde::de::MapAccess&gt;::next_value_seed (1 samples, 4.55%)</title><rect x="50.0000%" y="309" width="4.5455%" height="15" fill="rgb(242,14,37)" fg:x="11" fg:w="1"/><text x="50.2500%" y="319.50">&lt;&lt;&amp;mu..</text></g><g><title>&lt;core::marker::PhantomData&lt;T&gt; as serde::de::DeserializeSeed&gt;::deserialize (1 samples, 4.55%)</title><rect x="50.0000%" y="293" width="4.5455%" height="15" fill="rgb(246,228,12)" fg:x="11" fg:w="1"/><text x="50.2500%" y="303.50">&lt;core..</text></g><g><title>wasmtime_environ::component::info::_::&lt;impl serde::de::Deserialize for wasmtime_environ::component::info::Export&gt;::deserialize (1 samples, 4.55%)</title><rect x="50.0000%" y="277" width="4.5455%" height="15" fill="rgb(213,55,15)" fg:x="11" fg:w="1"/><text x="50.2500%" y="287.50">wasmt..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_enum (1 samples, 4.55%)</title><rect x="50.0000%" y="261" width="4.5455%" height="15" fill="rgb(209,9,3)" fg:x="11" fg:w="1"/><text x="50.2500%" y="271.50">&lt;&amp;mut..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::VariantAccess&gt;::struct_variant (1 samples, 4.55%)</title><rect x="50.0000%" y="245" width="4.5455%" height="15" fill="rgb(230,59,30)" fg:x="11" fg:w="1"/><text x="50.2500%" y="255.50">&lt;&amp;mut..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple (1 samples, 4.55%)</title><rect x="50.0000%" y="229" width="4.5455%" height="15" fill="rgb(209,121,21)" fg:x="11" fg:w="1"/><text x="50.2500%" y="239.50">&lt;&amp;mut..</text></g><g><title>&lt;&lt;wasmtime_environ::component::info::_::&lt;impl serde::de::Deserialize for wasmtime_environ::component::info::Export&gt;::deserialize::__Visitor as serde::de::Visitor&gt;::visit_enum::__Visitor as serde::de::Visitor&gt;::visit_seq (1 samples, 4.55%)</title><rect x="50.0000%" y="213" width="4.5455%" height="15" fill="rgb(220,109,13)" fg:x="11" fg:w="1"/><text x="50.2500%" y="223.50">&lt;&lt;was..</text></g><g><title>serde::de::SeqAccess::next_element (1 samples, 4.55%)</title><rect x="50.0000%" y="197" width="4.5455%" height="15" fill="rgb(232,18,1)" fg:x="11" fg:w="1"/><text x="50.2500%" y="207.50">serde..</text></g><g><title>&lt;&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_tuple::Access&lt;R,O&gt; as serde::de::SeqAccess&gt;::next_element_seed (1 samples, 4.55%)</title><rect x="50.0000%" y="181" width="4.5455%" height="15" fill="rgb(215,41,42)" fg:x="11" fg:w="1"/><text x="50.2500%" y="191.50">&lt;&lt;&amp;mu..</text></g><g><title>&lt;core::marker::PhantomData&lt;T&gt; as serde::de::DeserializeSeed&gt;::deserialize (1 samples, 4.55%)</title><rect x="50.0000%" y="165" width="4.5455%" height="15" fill="rgb(224,123,36)" fg:x="11" fg:w="1"/><text x="50.2500%" y="175.50">&lt;core..</text></g><g><title>indexmap::serde::&lt;impl serde::de::Deserialize for indexmap::map::IndexMap&lt;K,V,S&gt;&gt;::deserialize (1 samples, 4.55%)</title><rect x="50.0000%" y="149" width="4.5455%" height="15" fill="rgb(240,125,3)" fg:x="11" fg:w="1"/><text x="50.2500%" y="159.50">index..</text></g><g><title>&lt;&amp;mut bincode::de::Deserializer&lt;R,O&gt; as serde::de::Deserializer&gt;::deserialize_map (1 samples, 4.55%)</title><rect x="50.0000%" y="133" width="4.5455%" height="15" fill="rgb(205,98,50)" fg:x="11" fg:w="1"/><text x="50.2500%" y="143.50">&lt;&amp;mut..</text></g><g><title>&lt;indexmap::serde::IndexMapVisitor&lt;K,V,S&gt; as serde::de::Visitor&gt;::visit_map (1 samples, 4.55%)</title><rect x="50.0000%" y="117" width="4.5455%" height="15" fill="rgb(205,185,37)" fg:x="11" fg:w="1"/><text x="50.2500%" y="127.50">&lt;inde..</text></g><g><title>indexmap::map::IndexMap&lt;K,V,S&gt;::insert (1 samples, 4.55%)</title><rect x="50.0000%" y="101" width="4.5455%" height="15" fill="rgb(238,207,15)" fg:x="11" fg:w="1"/><text x="50.2500%" y="111.50">index..</text></g><g><title>indexmap::map::IndexMap&lt;K,V,S&gt;::insert_full (1 samples, 4.55%)</title><rect x="50.0000%" y="85" width="4.5455%" height="15" fill="rgb(213,199,42)" fg:x="11" fg:w="1"/><text x="50.2500%" y="95.50">index..</text></g><g><title>indexmap::map::core::IndexMapCore&lt;K,V&gt;::insert_full (1 samples, 4.55%)</title><rect x="50.0000%" y="69" width="4.5455%" height="15" fill="rgb(235,201,11)" fg:x="11" fg:w="1"/><text x="50.2500%" y="79.50">index..</text></g><g><title>indexmap::map::core::raw::&lt;impl indexmap::map::core::IndexMapCore&lt;K,V&gt;&gt;::find_or_insert (1 samples, 4.55%)</title><rect x="50.0000%" y="53" width="4.5455%" height="15" fill="rgb(207,46,11)" fg:x="11" fg:w="1"/><text x="50.2500%" y="63.50">index..</text></g><g><title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::find_or_find_insert_slot (1 samples, 4.55%)</title><rect x="50.0000%" y="37" width="4.5455%" height="15" fill="rgb(241,35,35)" fg:x="11" fg:w="1"/><text x="50.2500%" y="47.50">hashb..</text></g><g><title>host::get_component (4 samples, 18.18%)</title><rect x="40.9091%" y="853" width="18.1818%" height="15" fill="rgb(243,32,47)" fg:x="9" fg:w="4"/><text x="41.1591%" y="863.50">host::get_component</text></g><g><title>wasmtime::runtime::component::component::Component::deserialize_file (4 samples, 18.18%)</title><rect x="40.9091%" y="837" width="18.1818%" height="15" fill="rgb(247,202,23)" fg:x="9" fg:w="4"/><text x="41.1591%" y="847.50">wasmtime::runtime::component..</text></g><g><title>wasmtime::runtime::component::component::Component::from_parts (3 samples, 13.64%)</title><rect x="45.4545%" y="821" width="13.6364%" height="15" fill="rgb(219,102,11)" fg:x="10" fg:w="3"/><text x="45.7045%" y="831.50">wasmtime::runtime::co..</text></g><g><title>core::iter::traits::iterator::Iterator::collect (1 samples, 4.55%)</title><rect x="54.5455%" y="805" width="4.5455%" height="15" fill="rgb(243,110,44)" fg:x="12" fg:w="1"/><text x="54.7955%" y="815.50">core:..</text></g><g><title>&lt;core::result::Result&lt;V,E&gt; as core::iter::traits::collect::FromIterator&lt;core::result::Result&lt;A,E&gt;&gt;&gt;::from_iter (1 samples, 4.55%)</title><rect x="54.5455%" y="789" width="4.5455%" height="15" fill="rgb(222,74,54)" fg:x="12" fg:w="1"/><text x="54.7955%" y="799.50">&lt;core..</text></g><g><title>core::iter::adapters::try_process (1 samples, 4.55%)</title><rect x="54.5455%" y="773" width="4.5455%" height="15" fill="rgb(216,99,12)" fg:x="12" fg:w="1"/><text x="54.7955%" y="783.50">core:..</text></g><g><title>&lt;core::result::Result&lt;V,E&gt; as core::iter::traits::collect::FromIterator&lt;core::result::Result&lt;A,E&gt;&gt;&gt;::from_iter::_{{closure}} (1 samples, 4.55%)</title><rect x="54.5455%" y="757" width="4.5455%" height="15" fill="rgb(226,22,26)" fg:x="12" fg:w="1"/><text x="54.7955%" y="767.50">&lt;core..</text></g><g><title>core::iter::traits::iterator::Iterator::collect (1 samples, 4.55%)</title><rect x="54.5455%" y="741" width="4.5455%" height="15" fill="rgb(217,163,10)" fg:x="12" fg:w="1"/><text x="54.7955%" y="751.50">core:..</text></g><g><title>&lt;cranelift_entity::primary::PrimaryMap&lt;K,V&gt; as core::iter::traits::collect::FromIterator&lt;V&gt;&gt;::from_iter (1 samples, 4.55%)</title><rect x="54.5455%" y="725" width="4.5455%" height="15" fill="rgb(213,25,53)" fg:x="12" fg:w="1"/><text x="54.7955%" y="735.50">&lt;cran..</text></g><g><title>&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter (1 samples, 4.55%)</title><rect x="54.5455%" y="709" width="4.5455%" height="15" fill="rgb(252,105,26)" fg:x="12" fg:w="1"/><text x="54.7955%" y="719.50">&lt;allo..</text></g><g><title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::spec_from_iter::SpecFromIter&lt;T,I&gt;&gt;::from_iter (1 samples, 4.55%)</title><rect x="54.5455%" y="693" width="4.5455%" height="15" fill="rgb(220,39,43)" fg:x="12" fg:w="1"/><text x="54.7955%" y="703.50">&lt;allo..</text></g><g><title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::spec_from_iter_nested::SpecFromIterNested&lt;T,I&gt;&gt;::from_iter (1 samples, 4.55%)</title><rect x="54.5455%" y="677" width="4.5455%" height="15" fill="rgb(229,68,48)" fg:x="12" fg:w="1"/><text x="54.7955%" y="687.50">&lt;allo..</text></g><g><title>&lt;alloc::vec::Vec&lt;T,A&gt; as alloc::vec::spec_extend::SpecExtend&lt;T,I&gt;&gt;::spec_extend (1 samples, 4.55%)</title><rect x="54.5455%" y="661" width="4.5455%" height="15" fill="rgb(252,8,32)" fg:x="12" fg:w="1"/><text x="54.7955%" y="671.50">&lt;allo..</text></g><g><title>alloc::vec::Vec&lt;T,A&gt;::extend_desugared (1 samples, 4.55%)</title><rect x="54.5455%" y="645" width="4.5455%" height="15" fill="rgb(223,20,43)" fg:x="12" fg:w="1"/><text x="54.7955%" y="655.50">alloc..</text></g><g><title>&lt;core::iter::adapters::GenericShunt&lt;I,R&gt; as core::iter::traits::iterator::Iterator&gt;::next (1 samples, 4.55%)</title><rect x="54.5455%" y="629" width="4.5455%" height="15" fill="rgb(229,81,49)" fg:x="12" fg:w="1"/><text x="54.7955%" y="639.50">&lt;core..</text></g><g><title>core::iter::traits::iterator::Iterator::try_for_each (1 samples, 4.55%)</title><rect x="54.5455%" y="613" width="4.5455%" height="15" fill="rgb(236,28,36)" fg:x="12" fg:w="1"/><text x="54.7955%" y="623.50">core:..</text></g><g><title>&lt;core::iter::adapters::GenericShunt&lt;I,R&gt; as core::iter::traits::iterator::Iterator&gt;::try_fold (1 samples, 4.55%)</title><rect x="54.5455%" y="597" width="4.5455%" height="15" fill="rgb(249,185,26)" fg:x="12" fg:w="1"/><text x="54.7955%" y="607.50">&lt;core..</text></g><g><title>&lt;core::iter::adapters::map::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::try_fold (1 samples, 4.55%)</title><rect x="54.5455%" y="581" width="4.5455%" height="15" fill="rgb(249,174,33)" fg:x="12" fg:w="1"/><text x="54.7955%" y="591.50">&lt;core..</text></g><g><title>core::iter::traits::iterator::Iterator::try_fold (1 samples, 4.55%)</title><rect x="54.5455%" y="565" width="4.5455%" height="15" fill="rgb(233,201,37)" fg:x="12" fg:w="1"/><text x="54.7955%" y="575.50">core:..</text></g><g><title>core::iter::adapters::map::map_try_fold::_{{closure}} (1 samples, 4.55%)</title><rect x="54.5455%" y="549" width="4.5455%" height="15" fill="rgb(221,78,26)" fg:x="12" fg:w="1"/><text x="54.7955%" y="559.50">core:..</text></g><g><title>wasmtime::runtime::component::component::Component::from_parts::_{{closure}} (1 samples, 4.55%)</title><rect x="54.5455%" y="533" width="4.5455%" height="15" fill="rgb(250,127,30)" fg:x="12" fg:w="1"/><text x="54.7955%" y="543.50">wasmt..</text></g><g><title>&lt;alloc::sync::Arc&lt;T,A&gt; as core::clone::Clone&gt;::clone (1 samples, 4.55%)</title><rect x="54.5455%" y="517" width="4.5455%" height="15" fill="rgb(230,49,44)" fg:x="12" fg:w="1"/><text x="54.7955%" y="527.50">&lt;allo..</text></g><g><title>core::sync::atomic::AtomicUsize::fetch_add (1 samples, 4.55%)</title><rect x="54.5455%" y="501" width="4.5455%" height="15" fill="rgb(229,67,23)" fg:x="12" fg:w="1"/><text x="54.7955%" y="511.50">core:..</text></g><g><title>core::sync::atomic::atomic_add (1 samples, 4.55%)</title><rect x="54.5455%" y="485" width="4.5455%" height="15" fill="rgb(249,83,47)" fg:x="12" fg:w="1"/><text x="54.7955%" y="495.50">core:..</text></g><g><title>__aarch64_ldadd8_relax (1 samples, 4.55%)</title><rect x="54.5455%" y="469" width="4.5455%" height="15" fill="rgb(215,43,3)" fg:x="12" fg:w="1"/><text x="54.7955%" y="479.50">__aar..</text></g><g><title>wasmtime_wasi::bindings::sync_io::_internal::wasi::filesystem::types::add_to_linker (1 samples, 4.55%)</title><rect x="59.0909%" y="837" width="4.5455%" height="15" fill="rgb(238,154,13)" fg:x="13" fg:w="1"/><text x="59.3409%" y="847.50">wasmt..</text></g><g><title>wasmtime::runtime::component::linker::LinkerInstance&lt;T&gt;::func_wrap (1 samples, 4.55%)</title><rect x="59.0909%" y="821" width="4.5455%" height="15" fill="rgb(219,56,2)" fg:x="13" fg:w="1"/><text x="59.3409%" y="831.50">wasmt..</text></g><g><title>wasmtime::runtime::component::func::host::HostFunc::from_closure (1 samples, 4.55%)</title><rect x="59.0909%" y="805" width="4.5455%" height="15" fill="rgb(233,0,4)" fg:x="13" fg:w="1"/><text x="59.3409%" y="815.50">wasmt..</text></g><g><title>alloc::sync::Arc&lt;T&gt;::new (1 samples, 4.55%)</title><rect x="59.0909%" y="789" width="4.5455%" height="15" fill="rgb(235,30,7)" fg:x="13" fg:w="1"/><text x="59.3409%" y="799.50">alloc..</text></g><g><title>alloc::boxed::Box&lt;T&gt;::new (1 samples, 4.55%)</title><rect x="59.0909%" y="773" width="4.5455%" height="15" fill="rgb(250,79,13)" fg:x="13" fg:w="1"/><text x="59.3409%" y="783.50">alloc..</text></g><g><title>alloc::alloc::exchange_malloc (1 samples, 4.55%)</title><rect x="59.0909%" y="757" width="4.5455%" height="15" fill="rgb(211,146,34)" fg:x="13" fg:w="1"/><text x="59.3409%" y="767.50">alloc..</text></g><g><title>&lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (1 samples, 4.55%)</title><rect x="59.0909%" y="741" width="4.5455%" height="15" fill="rgb(228,22,38)" fg:x="13" fg:w="1"/><text x="59.3409%" y="751.50">&lt;allo..</text></g><g><title>alloc::alloc::Global::alloc_impl (1 samples, 4.55%)</title><rect x="59.0909%" y="725" width="4.5455%" height="15" fill="rgb(235,168,5)" fg:x="13" fg:w="1"/><text x="59.3409%" y="735.50">alloc..</text></g><g><title>alloc::alloc::alloc (1 samples, 4.55%)</title><rect x="59.0909%" y="709" width="4.5455%" height="15" fill="rgb(221,155,16)" fg:x="13" fg:w="1"/><text x="59.3409%" y="719.50">alloc..</text></g><g><title>__rdl_alloc (1 samples, 4.55%)</title><rect x="59.0909%" y="693" width="4.5455%" height="15" fill="rgb(215,215,53)" fg:x="13" fg:w="1"/><text x="59.3409%" y="703.50">__rdl..</text></g><g><title>wasmtime_wasi::bindings::wasi::cli::terminal_input::add_to_linker (1 samples, 4.55%)</title><rect x="63.6364%" y="837" width="4.5455%" height="15" fill="rgb(223,4,10)" fg:x="14" fg:w="1"/><text x="63.8864%" y="847.50">wasmt..</text></g><g><title>wasmtime::runtime::component::linker::Linker&lt;T&gt;::instance (1 samples, 4.55%)</title><rect x="63.6364%" y="821" width="4.5455%" height="15" fill="rgb(234,103,6)" fg:x="14" fg:w="1"/><text x="63.8864%" y="831.50">wasmt..</text></g><g><title>wasmtime::runtime::component::linker::LinkerInstance&lt;T&gt;::into_instance (1 samples, 4.55%)</title><rect x="63.6364%" y="805" width="4.5455%" height="15" fill="rgb(227,97,0)" fg:x="14" fg:w="1"/><text x="63.8864%" y="815.50">wasmt..</text></g><g><title>wasmtime::runtime::component::linker::LinkerInstance&lt;T&gt;::insert (1 samples, 4.55%)</title><rect x="63.6364%" y="789" width="4.5455%" height="15" fill="rgb(234,150,53)" fg:x="14" fg:w="1"/><text x="63.8864%" y="799.50">wasmt..</text></g><g><title>wasmtime::runtime::component::linker::NameMap::insert (1 samples, 4.55%)</title><rect x="63.6364%" y="773" width="4.5455%" height="15" fill="rgb(228,201,54)" fg:x="14" fg:w="1"/><text x="63.8864%" y="783.50">wasmt..</text></g><g><title>wasmtime::runtime::component::linker::Strings::intern (1 samples, 4.55%)</title><rect x="63.6364%" y="757" width="4.5455%" height="15" fill="rgb(222,22,37)" fg:x="14" fg:w="1"/><text x="63.8864%" y="767.50">wasmt..</text></g><g><title>std::collections::hash::map::HashMap&lt;K,V,S&gt;::insert (1 samples, 4.55%)</title><rect x="63.6364%" y="741" width="4.5455%" height="15" fill="rgb(237,53,32)" fg:x="14" fg:w="1"/><text x="63.8864%" y="751.50">std::..</text></g><g><title>hashbrown::map::HashMap&lt;K,V,S,A&gt;::insert (1 samples, 4.55%)</title><rect x="63.6364%" y="725" width="4.5455%" height="15" fill="rgb(233,25,53)" fg:x="14" fg:w="1"/><text x="63.8864%" y="735.50">hashb..</text></g><g><title>hashbrown::map::make_hash (1 samples, 4.55%)</title><rect x="63.6364%" y="709" width="4.5455%" height="15" fill="rgb(210,40,34)" fg:x="14" fg:w="1"/><text x="63.8864%" y="719.50">hashb..</text></g><g><title>core::hash::BuildHasher::hash_one (1 samples, 4.55%)</title><rect x="63.6364%" y="693" width="4.5455%" height="15" fill="rgb(241,220,44)" fg:x="14" fg:w="1"/><text x="63.8864%" y="703.50">core:..</text></g><g><title>core::hash::impls::&lt;impl core::hash::Hash for &amp;T&gt;::hash (1 samples, 4.55%)</title><rect x="63.6364%" y="677" width="4.5455%" height="15" fill="rgb(235,28,35)" fg:x="14" fg:w="1"/><text x="63.8864%" y="687.50">core:..</text></g><g><title>&lt;alloc::sync::Arc&lt;T,A&gt; as core::hash::Hash&gt;::hash (1 samples, 4.55%)</title><rect x="63.6364%" y="661" width="4.5455%" height="15" fill="rgb(210,56,17)" fg:x="14" fg:w="1"/><text x="63.8864%" y="671.50">&lt;allo..</text></g><g><title>core::hash::impls::&lt;impl core::hash::Hash for str&gt;::hash (1 samples, 4.55%)</title><rect x="63.6364%" y="645" width="4.5455%" height="15" fill="rgb(224,130,29)" fg:x="14" fg:w="1"/><text x="63.8864%" y="655.50">core:..</text></g><g><title>&lt;std::hash::random::DefaultHasher as core::hash::Hasher&gt;::write_str (1 samples, 4.55%)</title><rect x="63.6364%" y="629" width="4.5455%" height="15" fill="rgb(235,212,8)" fg:x="14" fg:w="1"/><text x="63.8864%" y="639.50">&lt;std:..</text></g><g><title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::write_str (1 samples, 4.55%)</title><rect x="63.6364%" y="613" width="4.5455%" height="15" fill="rgb(223,33,50)" fg:x="14" fg:w="1"/><text x="63.8864%" y="623.50">&lt;core..</text></g><g><title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::write_str (1 samples, 4.55%)</title><rect x="63.6364%" y="597" width="4.5455%" height="15" fill="rgb(219,149,13)" fg:x="14" fg:w="1"/><text x="63.8864%" y="607.50">&lt;core..</text></g><g><title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::write (1 samples, 4.55%)</title><rect x="63.6364%" y="581" width="4.5455%" height="15" fill="rgb(250,156,29)" fg:x="14" fg:w="1"/><text x="63.8864%" y="591.50">&lt;core..</text></g><g><title>core::hash::sip::u8to64_le (1 samples, 4.55%)</title><rect x="63.6364%" y="565" width="4.5455%" height="15" fill="rgb(216,193,19)" fg:x="14" fg:w="1"/><text x="63.8864%" y="575.50">core:..</text></g><g><title>__libc_start_main_impl (11 samples, 50.00%)</title><rect x="22.7273%" y="997" width="50.0000%" height="15" fill="rgb(216,135,14)" fg:x="5" fg:w="11"/><text x="22.9773%" y="1007.50">__libc_start_main_impl</text></g><g><title>__libc_start_call_main (11 samples, 50.00%)</title><rect x="22.7273%" y="981" width="50.0000%" height="15" fill="rgb(241,47,5)" fg:x="5" fg:w="11"/><text x="22.9773%" y="991.50">__libc_start_call_main</text></g><g><title>main (11 samples, 50.00%)</title><rect x="22.7273%" y="965" width="50.0000%" height="15" fill="rgb(233,42,35)" fg:x="5" fg:w="11"/><text x="22.9773%" y="975.50">main</text></g><g><title>std::rt::lang_start_internal (11 samples, 50.00%)</title><rect x="22.7273%" y="949" width="50.0000%" height="15" fill="rgb(231,13,6)" fg:x="5" fg:w="11"/><text x="22.9773%" y="959.50">std::rt::lang_start_internal</text></g><g><title>std::rt::lang_start::_{{closure}} (10 samples, 45.45%)</title><rect x="27.2727%" y="933" width="45.4545%" height="15" fill="rgb(207,181,40)" fg:x="6" fg:w="10"/><text x="27.5227%" y="943.50">std::rt::lang_start::_{{closure}}</text></g><g><title>std::sys_common::backtrace::__rust_begin_short_backtrace (10 samples, 45.45%)</title><rect x="27.2727%" y="917" width="45.4545%" height="15" fill="rgb(254,173,49)" fg:x="6" fg:w="10"/><text x="27.5227%" y="927.50">std::sys_common::backtrace::__rust_begin_short_backtrace</text></g><g><title>core::ops::function::FnOnce::call_once (10 samples, 45.45%)</title><rect x="27.2727%" y="901" width="45.4545%" height="15" fill="rgb(221,1,38)" fg:x="6" fg:w="10"/><text x="27.5227%" y="911.50">core::ops::function::FnOnce::call_once</text></g><g><title>host::main (10 samples, 45.45%)</title><rect x="27.2727%" y="885" width="45.4545%" height="15" fill="rgb(206,124,46)" fg:x="6" fg:w="10"/><text x="27.5227%" y="895.50">host::main</text></g><g><title>host::execute (10 samples, 45.45%)</title><rect x="27.2727%" y="869" width="45.4545%" height="15" fill="rgb(249,21,11)" fg:x="6" fg:w="10"/><text x="27.5227%" y="879.50">host::execute</text></g><g><title>wasmtime_wasi::command::sync::add_to_linker (3 samples, 13.64%)</title><rect x="59.0909%" y="853" width="13.6364%" height="15" fill="rgb(222,201,40)" fg:x="13" fg:w="3"/><text x="59.3409%" y="863.50">wasmtime_wasi::comman..</text></g><g><title>wasmtime_wasi::bindings::wasi::sockets::udp::add_to_linker (1 samples, 4.55%)</title><rect x="68.1818%" y="837" width="4.5455%" height="15" fill="rgb(235,61,29)" fg:x="15" fg:w="1"/><text x="68.4318%" y="847.50">wasmt..</text></g><g><title>wasmtime::runtime::component::linker::LinkerInstance&lt;T&gt;::func_wrap (1 samples, 4.55%)</title><rect x="68.1818%" y="821" width="4.5455%" height="15" fill="rgb(219,207,3)" fg:x="15" fg:w="1"/><text x="68.4318%" y="831.50">wasmt..</text></g><g><title>wasmtime::runtime::component::linker::LinkerInstance&lt;T&gt;::insert (1 samples, 4.55%)</title><rect x="68.1818%" y="805" width="4.5455%" height="15" fill="rgb(222,56,46)" fg:x="15" fg:w="1"/><text x="68.4318%" y="815.50">wasmt..</text></g><g><title>wasmtime::runtime::component::linker::NameMap::insert (1 samples, 4.55%)</title><rect x="68.1818%" y="789" width="4.5455%" height="15" fill="rgb(239,76,54)" fg:x="15" fg:w="1"/><text x="68.4318%" y="799.50">wasmt..</text></g><g><title>std::collections::hash::map::VacantEntry&lt;K,V&gt;::insert (1 samples, 4.55%)</title><rect x="68.1818%" y="773" width="4.5455%" height="15" fill="rgb(231,124,27)" fg:x="15" fg:w="1"/><text x="68.4318%" y="783.50">std::..</text></g><g><title>hashbrown::rustc_entry::RustcVacantEntry&lt;K,V,A&gt;::insert (1 samples, 4.55%)</title><rect x="68.1818%" y="757" width="4.5455%" height="15" fill="rgb(249,195,6)" fg:x="15" fg:w="1"/><text x="68.4318%" y="767.50">hashb..</text></g><g><title>hashbrown::raw::RawTable&lt;T,A&gt;::insert_no_grow (1 samples, 4.55%)</title><rect x="68.1818%" y="741" width="4.5455%" height="15" fill="rgb(237,174,47)" fg:x="15" fg:w="1"/><text x="68.4318%" y="751.50">hashb..</text></g><g><title>hashbrown::raw::Bucket&lt;T&gt;::write (1 samples, 4.55%)</title><rect x="68.1818%" y="725" width="4.5455%" height="15" fill="rgb(206,201,31)" fg:x="15" fg:w="1"/><text x="68.4318%" y="735.50">hashb..</text></g><g><title>core::ptr::mut_ptr::&lt;impl *mut T&gt;::write (1 samples, 4.55%)</title><rect x="68.1818%" y="709" width="4.5455%" height="15" fill="rgb(231,57,52)" fg:x="15" fg:w="1"/><text x="68.4318%" y="719.50">core:..</text></g><g><title>core::ptr::write (1 samples, 4.55%)</title><rect x="68.1818%" y="693" width="4.5455%" height="15" fill="rgb(248,177,22)" fg:x="15" fg:w="1"/><text x="68.4318%" y="703.50">core:..</text></g><g><title>_dl_sysdep_parse_arguments (1 samples, 4.55%)</title><rect x="72.7273%" y="949" width="4.5455%" height="15" fill="rgb(215,211,37)" fg:x="16" fg:w="1"/><text x="72.9773%" y="959.50">_dl_s..</text></g><g><title>memset (1 samples, 4.55%)</title><rect x="72.7273%" y="933" width="4.5455%" height="15" fill="rgb(241,128,51)" fg:x="16" fg:w="1"/><text x="72.9773%" y="943.50">memset</text></g><g><title>elf_machine_rela (2 samples, 9.09%)</title><rect x="77.2727%" y="901" width="9.0909%" height="15" fill="rgb(227,165,31)" fg:x="17" fg:w="2"/><text x="77.5227%" y="911.50">elf_machine_r..</text></g><g><title>resolve_map (2 samples, 9.09%)</title><rect x="77.2727%" y="885" width="9.0909%" height="15" fill="rgb(228,167,24)" fg:x="17" fg:w="2"/><text x="77.5227%" y="895.50">resolve_map</text></g><g><title>_dl_lookup_symbol_x (2 samples, 9.09%)</title><rect x="77.2727%" y="869" width="9.0909%" height="15" fill="rgb(228,143,12)" fg:x="17" fg:w="2"/><text x="77.5227%" y="879.50">_dl_lookup_sy..</text></g><g><title>do_lookup_x (1 samples, 4.55%)</title><rect x="81.8182%" y="853" width="4.5455%" height="15" fill="rgb(249,149,8)" fg:x="18" fg:w="1"/><text x="82.0682%" y="863.50">do_lo..</text></g><g><title>_dl_relocate_object (3 samples, 13.64%)</title><rect x="77.2727%" y="933" width="13.6364%" height="15" fill="rgb(243,35,44)" fg:x="17" fg:w="3"/><text x="77.5227%" y="943.50">_dl_relocate_object</text></g><g><title>elf_dynamic_do_Rela (3 samples, 13.64%)</title><rect x="77.2727%" y="917" width="13.6364%" height="15" fill="rgb(246,89,9)" fg:x="17" fg:w="3"/><text x="77.5227%" y="927.50">elf_dynamic_do_Rela</text></g><g><title>elf_machine_rela_relative (1 samples, 4.55%)</title><rect x="86.3636%" y="901" width="4.5455%" height="15" fill="rgb(233,213,13)" fg:x="19" fg:w="1"/><text x="86.6136%" y="911.50">elf_m..</text></g><g><title>_dl_start_final (5 samples, 22.73%)</title><rect x="72.7273%" y="981" width="22.7273%" height="15" fill="rgb(233,141,41)" fg:x="16" fg:w="5"/><text x="72.9773%" y="991.50">_dl_start_final</text></g><g><title>_dl_sysdep_start (5 samples, 22.73%)</title><rect x="72.7273%" y="965" width="22.7273%" height="15" fill="rgb(239,167,4)" fg:x="16" fg:w="5"/><text x="72.9773%" y="975.50">_dl_sysdep_start</text></g><g><title>dl_main (4 samples, 18.18%)</title><rect x="77.2727%" y="949" width="18.1818%" height="15" fill="rgb(209,217,16)" fg:x="17" fg:w="4"/><text x="77.5227%" y="959.50">dl_main</text></g><g><title>setup_vdso_pointers (1 samples, 4.55%)</title><rect x="90.9091%" y="933" width="4.5455%" height="15" fill="rgb(219,88,35)" fg:x="20" fg:w="1"/><text x="91.1591%" y="943.50">setup..</text></g><g><title>dl_vdso_vsym (1 samples, 4.55%)</title><rect x="90.9091%" y="917" width="4.5455%" height="15" fill="rgb(220,193,23)" fg:x="20" fg:w="1"/><text x="91.1591%" y="927.50">dl_vd..</text></g><g><title>_dl_lookup_symbol_x (1 samples, 4.55%)</title><rect x="90.9091%" y="901" width="4.5455%" height="15" fill="rgb(230,90,52)" fg:x="20" fg:w="1"/><text x="91.1591%" y="911.50">_dl_l..</text></g><g><title>_dl_new_hash (1 samples, 4.55%)</title><rect x="90.9091%" y="885" width="4.5455%" height="15" fill="rgb(252,106,19)" fg:x="20" fg:w="1"/><text x="91.1591%" y="895.50">_dl_n..</text></g><g><title>all (22 samples, 100%)</title><rect x="0.0000%" y="1045" width="100.0000%" height="15" fill="rgb(206,74,20)" fg:x="0" fg:w="22"/><text x="0.2500%" y="1055.50"></text></g><g><title>host (22 samples, 100.00%)</title><rect x="0.0000%" y="1029" width="100.0000%" height="15" fill="rgb(230,138,44)" fg:x="0" fg:w="22"/><text x="0.2500%" y="1039.50">host</text></g><g><title>_start (22 samples, 100.00%)</title><rect x="0.0000%" y="1013" width="100.0000%" height="15" fill="rgb(235,182,43)" fg:x="0" fg:w="22"/><text x="0.2500%" y="1023.50">_start</text></g><g><title>_dl_start (6 samples, 27.27%)</title><rect x="72.7273%" y="997" width="27.2727%" height="15" fill="rgb(242,16,51)" fg:x="16" fg:w="6"/><text x="72.9773%" y="1007.50">_dl_start</text></g><g><title>elf_get_dynamic_info (1 samples, 4.55%)</title><rect x="95.4545%" y="981" width="4.5455%" height="15" fill="rgb(248,9,4)" fg:x="21" fg:w="1"/><text x="95.7045%" y="991.50">elf_g..</text></g></svg></svg>

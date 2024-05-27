@@ -19,7 +19,7 @@ pub fn execute() -> anyhow::Result<()> {
     i2c.write(&[(0<<4) | 0x01])?;
 
     let now = format!("{}", Local::now().format("%H%M"));
-    println!("Time is: {}", now);
+    // println!("Time is: {}", now);
     let now_bytes = now.as_str().as_bytes();
 
     for (i, &number) in now_bytes.iter().enumerate() {

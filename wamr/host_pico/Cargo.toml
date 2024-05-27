@@ -4,7 +4,7 @@ name = "host_pico"
 version = "0.1.0"
 
 [dependencies]
-wamr-rust-sdk = { git = "https://github.com/bytecodealliance/wamr-rust-sdk", branch = "main" }
+wamr-rust-sdk = { git = "https://github.com/bytecodealliance/wamr-rust-sdk", tag = "v1.0.0" }
 once_cell = { version = "1.19.0", default-features = false }
 
 cortex-m = "0.7"

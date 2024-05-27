@@ -7,7 +7,7 @@ fn config() -> Criterion {
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("sensor read", |b| b.iter(|| execute(Guest::Sensor)));
+    c.bench_function("sensor read", |b| b.iter(|| execute(Guest::Sensor, Some("deserialize"))));
     // c.bench_function("lcd write", |b| b.iter(|| execute(Guest::LCDDisplay)));
     // c.bench_function("led write", |b| b.iter(|| execute(Guest::SegmentLEDDisplay)));
 }

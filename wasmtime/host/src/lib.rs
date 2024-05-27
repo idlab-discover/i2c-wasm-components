@@ -22,7 +22,7 @@ pub fn execute(guest: Guest, option: Option<&str>) -> Result<String, anyhow::Err
     let mut linker = Linker::new(&engine);
 
     // Bind wasi commmand world
-    wasmtime_wasi::command::sync::add_to_linker(&mut linker)?;
+    // wasmtime_wasi::command::sync::add_to_linker(&mut linker)?;
 
     let wasi = WasiCtxBuilder::new().inherit_stdout().build();
 
