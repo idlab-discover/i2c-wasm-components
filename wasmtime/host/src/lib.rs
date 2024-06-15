@@ -19,7 +19,7 @@ pub enum Guest {
 pub fn execute(guest: Guest, option: Option<&str>) -> Result<String, anyhow::Error> {
     let engine = Engine::new(Config::new().wasm_component_model(true))?;
 
-    let mut linker = Linker::new(&engine);
+    let linker = Linker::new(&engine);
 
     // Bind wasi commmand world
     // wasmtime_wasi::command::sync::add_to_linker(&mut linker)?;

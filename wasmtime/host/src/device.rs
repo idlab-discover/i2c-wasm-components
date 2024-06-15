@@ -16,7 +16,8 @@ bindgen!({
     with: {
         "wasi:i2c/delay/delay": device::Delay,
         "wasi:i2c/i2c/i2c": device::I2c,
-    }
+    },
+    trappable_imports: true
 });
 
 pub trait Device {

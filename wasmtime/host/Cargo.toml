@@ -7,8 +7,21 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.75"
-wasmtime = "19.0.0"
-wasmtime-wasi = "19.0.0"
+wasmtime = { version = "21.0.0", default-features = false, features = [
+  'cache',
+  'gc',
+  'parallel-compilation',
+  'cranelift',
+  'pooling-allocator',
+  'demangle',
+  'addr2line',
+  'coredump',
+  'debug-builtins',
+  'runtime',
+  'component-model',
+  'threads'
+]}
+wasmtime-wasi = "21.0.0"
 embedded-hal = "1.0.0"
 linux-embedded-hal = "0.4.0"
 i2cdev = "0.6.0"
